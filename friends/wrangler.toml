@@ -1,0 +1,15 @@
+# Numoral VIP สำหรับเพื่อน (ต้องใส่รหัสเชิญ) — ใช้คู่กับ deploy.mjs
+name = "numoral-vip-friends"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[kv_namespaces]]
+binding = "CODES"
+# สร้างครั้งแรกด้วยคำสั่ง: npx wrangler kv namespace create CODES  แล้วเอา id ที่ได้มาใส่แทนบรรทัดล่าง
+id = "ใส่-ID-ของ-KV-ตรงนี้"

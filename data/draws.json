@@ -1,0 +1,7 @@
+{
+ "note": "งวดหวยลาว VIP ที่ GitHub Actions ดึงมาให้หลังวันที่ใน since (d = วันที่ ค.ศ. YYYYMMDD, n = เลข 5 หลัก) · ข้อมูลก่อนหน้านั้นฝังอยู่ใน app.js แล้ว",
+ "since": "20261117",
+ "updatedAt": null,
+ "lastCheck": null,
+ "draws": []
+}

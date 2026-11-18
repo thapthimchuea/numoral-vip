@@ -1,0 +1,44 @@
+name: Update Lao VIP draws
+
+on:
+  schedule:
+    # เวลาเป็น UTC (ไทย = UTC+7) — หวยลาว VIP ออกทุกวัน 21:30 น. เวลาไทย (= 14:30 UTC)
+    - cron: "40,55 14 * * *"   # 21:40 และ 21:55 น.
+    - cron: "15,45 15 * * *"   # 22:15 และ 22:45 น.
+    - cron: "30 16 * * *"      # 23:30 น.
+    - cron: "10 1 * * *"       # สำรองเช้าวันถัดไป 08:10 น.
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-draws
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Self-test parser
+        run: node scripts/update-draws.mjs --test
+      - name: Fetch latest Lao VIP results
+        run: node scripts/update-draws.mjs
+      - name: Commit if there is a new draw
+        run: |
+          if git diff --quiet -- data/draws.json; then echo "no change"; exit 0; fi
+          # บันทึกเฉพาะเมื่อมีงวดใหม่ (ไม่ commit แค่เพราะเวลาเช็กเปลี่ยน)
+          if git diff -U0 -- data/draws.json | grep -q '^+.*"d":'; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/draws.json
+            git commit -m "Add new Lao VIP draw results"
+            git push || (git pull --rebase -X theirs && git push)
+          else
+            echo "only lastCheck changed; skip commit"
+          fi
