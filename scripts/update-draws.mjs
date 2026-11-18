@@ -1,7 +1,7 @@
 // Numoral VIP — ดึงผลหวยลาว VIP งวดใหม่มาเก็บใน data/draws.json
 // แหล่งหลัก: raakaadee.com  ·  แหล่งตรวจเทียบ: ตรวจหวย.com (xn--t3cmiit.com)
 // กติกา: ถ้าได้ทั้งสองแหล่งและเลขตรงกัน → บันทึก · ถ้าไม่ตรงกัน → ไม่บันทึก (รอรอบหน้า)
-//        ถ้ามีแหล่งเดียว → บันทึกเมื่ออีกแหล่งเปิดไม่ได้ หรืองวดนั้นผ่านไปแล้วเกิน 1 วัน
+//        ถ้ามีแหล่งเดียว → บันทึกเมื่ออีกแหล่งเปิดไม่ได้ หรือเป็นงวดของวันก่อนหน้า (เช้าวันถัดไป)
 // ใช้:  node scripts/update-draws.mjs            (ดึงจริง)
 //       node scripts/update-draws.mjs --test     (ทดสอบตัวแยกข้อมูลกับตัวอย่างในไฟล์ ไม่ต่อเน็ต)
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -108,7 +108,7 @@ async function main() {
   for (const k of [...cands].sort()) {
     const a = A && A[k], b = B && B[k];
     if (a && b) { a === b ? added.push({ d: k, n: a }) : skipped.push(`${k}: ไม่ตรงกัน (${a} / ${b})`); continue; }
-    const one = a || b, otherDown = a ? !B : !A, old = k <= keyAddDays(today.key, -2);
+    const one = a || b, otherDown = a ? !B : !A, old = k < today.key; // งวดก่อนวันนี้ (เวลาไทย) บันทึกจากแหล่งเดียวได้ ไม่ต้องรอ 2 วัน
     if (otherDown || old) added.push({ d: k, n: one });
     else skipped.push(`${k}: รออีกแหล่งยืนยัน (${one})`);
   }
