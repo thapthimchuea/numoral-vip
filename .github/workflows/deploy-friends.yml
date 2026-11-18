@@ -37,12 +37,12 @@ jobs:
       - name: Install wrangler
         if: env.skip != '1'
         run: npm i --no-save wrangler@4
-      - name: Find or create KV namespace "CODES"
+      - name: Find or create KV namespace "numoral-vip-codes" (แยกจาก Numora)
         if: env.skip != '1'
         run: |
-          ID=$(npx wrangler kv namespace list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s.slice(s.indexOf("[")));const n=a.find(x=>/numoral-vip-friends.*CODES|^CODES$/.test(x.title));if(n)console.log(n.id)})')
+          ID=$(npx wrangler kv namespace list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s.slice(s.indexOf("[")));const n=a.find(x=>x.title==="numoral-vip-codes");if(n)console.log(n.id)})')
           if [ -z "$ID" ]; then
-            npx wrangler kv namespace create CODES | tee /tmp/kv.txt
+            npx wrangler kv namespace create numoral-vip-codes | tee /tmp/kv.txt
             ID=$(grep -oE '[0-9a-f]{32}' /tmp/kv.txt | head -1)
           fi
           test -n "$ID"
