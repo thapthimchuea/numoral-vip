@@ -6,7 +6,10 @@ on:
     - cron: "40,55 14 * * *"   # 21:40 และ 21:55 น.
     - cron: "15,45 15 * * *"   # 22:15 และ 22:45 น.
     - cron: "30 16 * * *"      # 23:30 น.
-    - cron: "10 1 * * *"       # สำรองเช้าวันถัดไป 08:10 น.
+    - cron: "10 1 * * *"       # สำรองเช้าวันถัดไป 08:10 น. + ล็อกชุดลุ้นของวันนี้
+    - cron: "20 4 * * *"       # 11:20 น. ล็อกชุดลุ้น (สำรอง)
+    - cron: "50 8 * * *"       # 15:50 น. ล็อกชุดลุ้น (สำรอง)
+    - cron: "40 11 * * *"      # 18:40 น. ล็อกชุดลุ้น (สำรองรอบสุดท้ายก่อน 21:30)
   workflow_dispatch: {}
 
 permissions:
@@ -29,16 +32,17 @@ jobs:
         run: node scripts/update-draws.mjs --test
       - name: Fetch latest Lao VIP results
         run: node scripts/update-draws.mjs
-      - name: Commit if there is a new draw
+      - name: Lock numbers for the next draw (ชุดลุ้น)
+        run: node scripts/lock-picks.mjs
+      - name: Commit new draws / locked numbers
         run: |
-          if git diff --quiet -- data/draws.json; then echo "no change"; exit 0; fi
-          # บันทึกเฉพาะเมื่อมีงวดใหม่ (ไม่ commit แค่เพราะเวลาเช็กเปลี่ยน)
-          if git diff -U0 -- data/draws.json | grep -q '^+.*"d":'; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add data/draws.json
-            git commit -m "Add new Lao VIP draw results"
-            git push || (git pull --rebase -X theirs && git push)
-          else
-            echo "only lastCheck changed; skip commit"
-          fi
+          ADD=""
+          # บันทึกผลเฉพาะเมื่อมีงวดใหม่ (ไม่ commit แค่เพราะเวลาเช็กเปลี่ยน)
+          if git diff -U0 -- data/draws.json | grep -q '^+.*"d":'; then ADD="data/draws.json"; else git checkout -- data/draws.json; fi
+          if [ -n "$(git status --porcelain -- data/picks.json)" ]; then ADD="$ADD data/picks.json"; fi
+          if [ -z "$ADD" ]; then echo "no change"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $ADD
+          git commit -m "Add new Lao VIP draws / lock numbers"
+          git push || (git pull --rebase -X theirs && git push)

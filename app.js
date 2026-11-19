@@ -482,30 +482,30 @@ const Disclaimer = () => {
 const SectionTitle = ({ icon: e, children: t, className: a = "", right: n }) => React.createElement("div", { className: "flex items-center justify-between mb-3" }, React.createElement("h2", { className: `flex items-center gap-2 font-semibold text-[15px] ${a}` }, React.createElement(Icon, { name: e, size: 18 }), t), n);
 const Chip = ({ active: e, onClick: t, children: a }) => React.createElement("button", { onClick: t, className: `shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-full text-[13px] whitespace-nowrap border border-zinc-800 bg-zinc-900/60 text-zinc-400 transition ${e ? "chip-active" : "active:bg-zinc-800"}` }, a);
 const Ball = ({ value: e, c1: t, c2: a, delay: n = 0, size: s }) => React.createElement("div", { className: "ball", style: { "--c1": t, "--c2": a, animationDelay: `${n}ms`, ...s ? { width: s, height: s } : {} } }, React.createElement("span", { className: `digi font-black text-white ${String(e).length > 2 ? "text-xl tracking-tight" : "text-2xl"}`, style: { textShadow: "0 0 8px rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.6)" } }, e));
-// ===== ชุดลุ้น 10 / 20 ตัว + นับผลอัตโนมัติ + สกอร์บอร์ด =====
+// ===== ชุดลุ้น 10 / 20 ตัว (ล็อกก่อนผลออกทุกงวด) + นับผลอัตโนมัติ + สกอร์บอร์ด =====
 const luckyTargetStore = createStore("numoralvip.luckyTarget.v1", "bottom");
+const luckyPicksStore = createStore("numoralvip.luckyPicks.v1", null);
 const LUCKY_TARGETS = [{ id: "bottom", label: "2 ตัวล่าง" }, { id: "top", label: "2 ตัวบน" }, { id: "either", label: "บนหรือล่าง" }];
-const LUCKY_WINDOW = 100;
-// ชุด 20 ตัวเรียงตามคะแนนสูตรผสมผสาน (รวมทุกสูตร) โดยใช้เฉพาะข้อมูลก่อนงวดนั้น · ชุด 10 = 10 ตัวแรก
 const luckyPick = (hist, date) => predict("ensemble", hist, date, 20).pairs.map(p => p.n);
 const luckyHit = (set, d, t, k) => {
     const s = set.slice(0, k);
     return t === "top" ? s.includes(d.top) : t === "bottom" ? s.includes(d.bottom) : s.includes(d.top) || s.includes(d.bottom);
 };
 const luckyBase = (t, k) => t === "either" ? 100 * (1 - Math.pow(1 - k / 100, 2)) : k;
-function luckyScore(draws, t, rows) {
-    const res = rows.map(r => ({ ...r, h10: luckyHit(r.set, r.d, t, 10), h20: luckyHit(r.set, r.d, t, 20) }));
-    const n = res.length;
-    const c10 = res.filter(r => r.h10).length, c20 = res.filter(r => r.h20).length;
-    let cur = 0;
-    for (const r of res) { if (r.h20) cur++; else break; }
-    let best = 0, run = 0;
-    for (const r of res) { run = r.h20 ? run + 1 : 0; best = Math.max(best, run); }
-    let miss = 0;
-    for (const r of res) { if (!r.h20) miss++; else break; }
-    return { res, n, c10, c20, p10: n ? 100 * c10 / n : 0, p20: n ? 100 * c20 / n : 0, cur, best, miss };
+const luckyTime = iso => {
+    const d = new Date(iso);
+    return `${d.getDate()} ${TH_MONTH[d.getMonth()]} ${pad2(d.getHours())}:${pad2(d.getMinutes())} น.`;
+};
+async function loadLuckyPicks() {
+    const j = await fetchJSON(`./data/picks.json?t=${Date.now()}`);
+    if (!j || !Array.isArray(j.picks)) throw new Error("bad picks file");
+    const picks = j.picks.filter(p => p && /^\d{8}$/.test(p.d) && Array.isArray(p.set) && p.set.length === 20).map(p => ({ d: p.d, set: p.set.map(Number), at: p.at, base: p.base }));
+    const v = { since: j.since || (picks[0] && picks[0].d) || null, picks };
+    luckyPicksStore.set(v);
+    return v;
 }
-function LuckyVerdict({ p, base }) {
+function LuckyVerdict({ p, base, n }) {
+    if (n < 20) return React.createElement("span", { className: "text-[10.5px] rounded-full border px-2 py-0.5 text-zinc-400 border-zinc-700" }, "ยังน้อยเกินจะเทียบ");
     const d = p - base;
     const [txt, cls] = d >= 3 ? ["นำการสุ่ม", "text-emerald-300 border-emerald-400/40 bg-emerald-500/10"] : d <= -3 ? ["ตามหลังการสุ่ม", "text-rose-300 border-rose-400/40 bg-rose-500/10"] : ["พอๆ กับการสุ่ม", "text-zinc-300 border-zinc-600 bg-zinc-800/60"];
     return React.createElement("span", { className: `text-[10.5px] rounded-full border px-2 py-0.5 ${cls}` }, txt);
@@ -513,55 +513,68 @@ function LuckyVerdict({ p, base }) {
 function LuckySetsCard() {
     const draws = useDraws();
     const next = useNextDraw();
+    const nk = keyOf(next);
     const [t, setT] = useStore(luckyTargetStore);
+    const [data] = useStore(luckyPicksStore);
+    const [err, setErr] = useState(false);
+    const [open, setOpen] = useState(null);
     const [showAll, setShowAll] = useState(false);
     const latestKey = draws.length ? draws[0].id : "";
-    const nextSet = useMemo(() => luckyPick(draws, next), [latestKey, keyOf(next)]);
-    const [rows, setRows] = useState(null);
     useEffect(() => {
-        setRows(null);
         let alive = true;
-        const W = Math.min(LUCKY_WINDOW, draws.length - 30);
-        const out = [];
-        let i = 0;
-        const step = () => {
-            if (!alive) return;
-            const end = Math.min(W, i + 15);
-            for (; i < end; i++) out.push({ d: draws[i], set: luckyPick(draws.slice(i + 1), draws[i].date) });
-            i < W ? setTimeout(step, 0) : setRows(out.slice());
-        };
-        const h = setTimeout(step, 120);
-        return () => { alive = false; clearTimeout(h); };
+        loadLuckyPicks().then(() => alive && setErr(false)).catch(() => alive && setErr(true));
+        return () => { alive = false; };
     }, [latestKey]);
-    const sc = useMemo(() => rows ? luckyScore(draws, t, rows) : null, [rows, t]);
+    const picks = data ? data.picks : [];
+    const locked = picks.find(p => p.d === nk);
+    const preview = useMemo(() => locked ? null : luckyPick(draws, next), [locked ? 1 : 0, latestKey, nk]);
+    const set = locked ? locked.set : preview;
+    const byKey = useMemo(() => { const m = {}; draws.forEach(d => { m[keyOf(d.date)] = d; }); return m; }, [draws]);
+    const sc = useMemo(() => {
+        const res = picks.filter(p => byKey[p.d]).map(p => ({ p, d: byKey[p.d], h10: luckyHit(p.set, byKey[p.d], t, 10), h20: luckyHit(p.set, byKey[p.d], t, 20) })).reverse();
+        const n = res.length, c10 = res.filter(r => r.h10).length, c20 = res.filter(r => r.h20).length;
+        let cur = 0; for (const r of res) { if (r.h20) cur++; else break; }
+        let best = 0, run = 0; for (const r of [...res].reverse()) { run = r.h20 ? run + 1 : 0; best = Math.max(best, run); }
+        return { res, n, c10, c20, p10: n ? 100 * c10 / n : 0, p20: n ? 100 * c20 / n : 0, cur, best };
+    }, [picks, byKey, t]);
+    const pending = picks.filter(p => !byKey[p.d] && p.d >= keyOf(draws[0].date)).reverse();
     const b10 = luckyBase(t, 10), b20 = luckyBase(t, 20);
     const tLabel = (LUCKY_TARGETS.find(x => x.id === t) || LUCKY_TARGETS[0]).label;
-    const numBox = (n, strong) => React.createElement("div", { key: n, className: `digi text-center rounded-lg py-1.5 text-[17px] border ${strong ? "text-fuchsia-200 border-fuchsia-400/50 bg-fuchsia-500/10" : "text-cyan-200/90 border-cyan-400/30 bg-cyan-500/5"}`, style: strong ? { boxShadow: "0 0 10px rgba(255,0,200,.15) inset" } : null }, pad2(n));
+    const timeStr = `${pad2(DRAW_HOUR)}:${pad2(DRAW_MIN)} น.`;
+    const numBox = (n, strong, hit) => React.createElement("div", { key: n, className: `digi text-center rounded-lg py-1.5 text-[17px] border ${hit ? "text-zinc-950 bg-emerald-300 border-emerald-300" : strong ? "text-fuchsia-200 border-fuchsia-400/50 bg-fuchsia-500/10" : "text-cyan-200/90 border-cyan-400/30 bg-cyan-500/5"}`, style: strong && !hit ? { boxShadow: "0 0 10px rgba(255,0,200,.15) inset" } : null }, pad2(n));
     const resultOf = d => t === "top" ? pad2(d.top) : t === "bottom" ? pad2(d.bottom) : `${pad2(d.top)} / ${pad2(d.bottom)}`;
-    const badge = r => r.h10 ? React.createElement("span", { className: "text-[10.5px] rounded-full px-2 py-0.5 border text-emerald-300 border-emerald-400/40 bg-emerald-500/10" }, "ถูกชุด 10") : r.h20 ? React.createElement("span", { className: "text-[10.5px] rounded-full px-2 py-0.5 border text-cyan-300 border-cyan-400/40 bg-cyan-500/10" }, "ถูกชุด 20") : React.createElement("span", { className: "text-[10.5px] rounded-full px-2 py-0.5 border text-zinc-500 border-zinc-700" }, "ไม่ถูก");
+    const hitNums = d => t === "top" ? [d.top] : t === "bottom" ? [d.bottom] : [d.top, d.bottom];
+    const pill = (txt, cls) => React.createElement("span", { className: `text-[10.5px] rounded-full px-2 py-0.5 border ${cls}` }, txt);
+    const badge = r => r.h10 ? pill("ถูกชุด 10", "text-emerald-300 border-emerald-400/40 bg-emerald-500/10") : r.h20 ? pill("ถูกชุด 20", "text-cyan-300 border-cyan-400/40 bg-cyan-500/10") : pill("ไม่ถูก", "text-zinc-500 border-zinc-700");
     const stat = (label, val, sub) => React.createElement("div", { className: "rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-2" }, React.createElement("p", { className: "text-[10.5px] text-zinc-500" }, label), React.createElement("p", { className: "digi text-[18px] text-zinc-100" }, val), sub && React.createElement("p", { className: "text-[10px] text-zinc-500" }, sub));
-    const shown = sc ? sc.res.slice(0, showAll ? sc.res.length : 10) : [];
+    const shown = showAll ? sc.res : sc.res.slice(0, 10);
     return React.createElement("div", { className: "glass rounded-2xl p-4 fade-in", style: { boxShadow: "0 0 0 1px rgba(255,0,200,.18), 0 0 26px rgba(255,0,200,.06)" } },
-        React.createElement(SectionTitle, { icon: "Target", className: "glow-pink", right: React.createElement("span", { className: "text-[11px] text-zinc-500" }, "งวด ", fmtDate(next)) }, "ชุดลุ้นงวดถัดไป"),
+        React.createElement(SectionTitle, { icon: "Target", className: "glow-pink", right: React.createElement("span", { className: "text-[11px] text-zinc-500" }, "งวด ", fmtDate(next)) }, "ชุดลุ้นงวดนี้"),
+        locked ? React.createElement("p", { className: "flex items-center gap-1.5 text-[11.5px] text-emerald-300 mb-3" }, React.createElement(Icon, { name: "Lock", size: 13 }), "ล็อกแล้วเมื่อ ", luckyTime(locked.at), " · ใช้ผลถึงงวด ", fmtKey(locked.base), " · เปลี่ยนไม่ได้")
+            : React.createElement("p", { className: "flex items-start gap-1.5 text-[11.5px] text-amber-300/90 mb-3 leading-snug" }, React.createElement(Icon, { name: "Clock", size: 13, className: "mt-0.5 shrink-0" }), err && !data ? "ยังโหลดรายการล็อกไม่ได้ · " : "", "ยังไม่ล็อก ระบบจะล็อกให้เองก่อน ", timeStr, " · ชุดด้านล่างเป็นตัวอย่างจากข้อมูลตอนนี้ ยังไม่นับคะแนน"),
         React.createElement("div", { className: "grid grid-cols-3 gap-1.5 mb-3" }, LUCKY_TARGETS.map(x => React.createElement("button", { key: x.id, onClick: () => setT(x.id), className: `rounded-xl py-1.5 text-[12.5px] border transition ${t === x.id ? "chip-active" : "border-zinc-800 bg-zinc-900/60 text-zinc-400 active:bg-zinc-800"}` }, x.label))),
         React.createElement("p", { className: "text-[12px] text-zinc-400 mb-1.5" }, "ชุด 10 ตัว ", React.createElement("span", { className: "text-zinc-500" }, "· โอกาสราว ", b10.toFixed(0), "% ต่องวด")),
-        React.createElement("div", { className: "grid grid-cols-5 gap-1.5 mb-3" }, nextSet.slice(0, 10).map(n => numBox(n, true))),
+        React.createElement("div", { className: "grid grid-cols-5 gap-1.5 mb-3" }, set.slice(0, 10).map(n => numBox(n, true))),
         React.createElement("p", { className: "text-[12px] text-zinc-400 mb-1.5" }, "ชุด 20 ตัว = ชุด 10 ข้างต้น + อีก 10 ตัวนี้ ", React.createElement("span", { className: "text-zinc-500" }, "· โอกาสราว ", b20.toFixed(0), "% ต่องวด")),
-        React.createElement("div", { className: "grid grid-cols-5 gap-1.5" }, nextSet.slice(10, 20).map(n => numBox(n, false))),
-        React.createElement("p", { className: "text-[11px] text-zinc-500 mt-2 leading-snug" }, "เลือกด้วยสูตรผสมผสาน (รวมคะแนนทุกสูตร) จากข้อมูลก่อนงวดนั้นเท่านั้น · ลุ้นกับ ", tLabel, " · ระบบตรวจผลให้เองเมื่อผลออก"),
+        React.createElement("div", { className: "grid grid-cols-5 gap-1.5" }, set.slice(10, 20).map(n => numBox(n, false))),
+        React.createElement("p", { className: "text-[11px] text-zinc-500 mt-2 leading-snug" }, "เลือกด้วยสูตรผสมผสาน (รวมคะแนนทุกสูตร) · ระบบล็อกชุดก่อนผลออกทุกงวด แล้วตรวจผลให้เองเมื่อผลออก"),
         React.createElement("div", { className: "mt-4 pt-3 border-t border-zinc-800/80" },
-            React.createElement("div", { className: "flex items-center justify-between mb-2" }, React.createElement("h3", { className: "text-[13.5px] font-semibold text-zinc-200 flex items-center gap-1.5" }, React.createElement(Icon, { name: "Trophy", size: 15, className: "text-yellow-300" }), "สกอร์บอร์ด"), React.createElement("span", { className: "text-[11px] text-zinc-500" }, sc ? `${sc.n} งวดล่าสุด · ${tLabel}` : "กำลังนับผล...")),
-            !sc ? React.createElement("div", { className: "h-24 rounded-xl bg-zinc-900/40 border border-zinc-800 animate-pulse" }) : React.createElement(React.Fragment, null,
+            React.createElement("div", { className: "flex items-center justify-between mb-2" }, React.createElement("h3", { className: "text-[13.5px] font-semibold text-zinc-200 flex items-center gap-1.5" }, React.createElement(Icon, { name: "Trophy", size: 15, className: "text-yellow-300" }), "สกอร์บอร์ด"), React.createElement("span", { className: "text-[11px] text-zinc-500" }, data && data.since ? `เริ่มนับ ${fmtKey(data.since)} · ${tLabel}` : tLabel)),
+            sc.n === 0 ? React.createElement("p", { className: "text-[12.5px] text-zinc-400 rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-3 leading-snug" }, "ยังไม่มีงวดที่ตรวจผล · งวดแรกจะนับหลังผลออก ", timeStr, " ของงวดที่ล็อกไว้") : React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "space-y-2 mb-2" }, [[10, sc.c10, sc.p10, b10], [20, sc.c20, sc.p20, b20]].map(([k, c, p, b]) => React.createElement("div", { key: k, className: "rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-2" },
-                    React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("span", { className: "text-[12.5px] text-zinc-300" }, "ชุด ", k, " ตัว: ถูก ", React.createElement("b", { className: "digi text-zinc-100" }, c), " / ", sc.n, " งวด"), React.createElement(LuckyVerdict, { p, base: b })),
-                    React.createElement("div", { className: "relative h-2 mt-2 rounded-full bg-zinc-800 overflow-hidden" }, React.createElement("div", { className: "absolute inset-y-0 left-0 rounded-full", style: { width: `${Math.min(100, p * 2)}%`, background: k === 10 ? "linear-gradient(90deg,#ff00c8,#aa00ff)" : "linear-gradient(90deg,#00e5ff,#0091ff)" } }), React.createElement("div", { className: "absolute inset-y-0 w-0.5 bg-yellow-300", style: { left: `${Math.min(100, b * 2)}%` } })),
+                    React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("span", { className: "text-[12.5px] text-zinc-300" }, "ชุด ", k, " ตัว: ถูก ", React.createElement("b", { className: "digi text-zinc-100" }, c), " / ", sc.n, " งวด"), React.createElement(LuckyVerdict, { p, base: b, n: sc.n })),
+                    React.createElement("div", { className: "relative h-2 mt-2 rounded-full bg-zinc-800 overflow-hidden" }, React.createElement("div", { className: "absolute inset-y-0 left-0 rounded-full", style: { width: `${Math.min(100, p)}%`, background: k === 10 ? "linear-gradient(90deg,#ff00c8,#aa00ff)" : "linear-gradient(90deg,#00e5ff,#0091ff)" } }), React.createElement("div", { className: "absolute inset-y-0 w-0.5 bg-yellow-300", style: { left: `${Math.min(100, b)}%` } })),
                     React.createElement("p", { className: "text-[10.5px] text-zinc-500 mt-1" }, "ของเรา ", p.toFixed(0), "% · เส้นเหลือง = เกณฑ์สุ่ม ", b.toFixed(0), "%")))),
-                React.createElement("div", { className: "grid grid-cols-3 gap-1.5 mb-3" }, stat("ถูกติดกันตอนนี้", sc.cur, "งวด (ชุด 20)"), stat("ติดกันสูงสุด", sc.best, "งวด (ชุด 20)"), stat("ไม่ถูกมาแล้ว", sc.miss, "งวด (ชุด 20)")),
-                React.createElement("div", { className: "space-y-1.5" }, shown.map(r => React.createElement("div", { key: r.d.id, className: "flex items-center gap-3 rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-1.5" },
-                    React.createElement("span", { className: "text-[11.5px] text-zinc-400 w-[86px] shrink-0" }, fmtDate(r.d.date)),
-                    React.createElement("span", { className: "digi text-[15px] text-zinc-100 flex-1" }, resultOf(r.d)),
-                    badge(r)))),
-                sc.res.length > 10 && React.createElement("button", { onClick: () => setShowAll(v => !v), className: "w-full mt-2 rounded-xl py-1.5 text-[12px] border border-zinc-800 text-zinc-400 active:bg-zinc-800" }, showAll ? "ย่อ" : `ดูทั้ง ${sc.res.length} งวด`))));
+                React.createElement("div", { className: "grid grid-cols-3 gap-1.5 mb-3" }, stat("ลุ้นแล้ว", sc.n, "งวด"), stat("ถูกติดกันตอนนี้", sc.cur, "งวด (ชุด 20)"), stat("ติดกันสูงสุด", sc.best, "งวด (ชุด 20)"))),
+            React.createElement("div", { className: "space-y-1.5" },
+                pending.map(p => React.createElement("div", { key: "p" + p.d, className: "flex items-center gap-3 rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-1.5" }, React.createElement("span", { className: "text-[11.5px] text-zinc-400 w-[86px] shrink-0" }, fmtKey(p.d)), React.createElement("span", { className: "text-[12.5px] text-zinc-500 flex-1" }, "ล็อกแล้ว"), pill("รอผล", "text-amber-300 border-amber-400/40"))),
+                shown.map(r => React.createElement("div", { key: r.p.d, className: "rounded-xl bg-zinc-900/60 border border-zinc-800" },
+                    React.createElement("button", { onClick: () => setOpen(o => o === r.p.d ? null : r.p.d), className: "w-full flex items-center gap-3 px-3 py-1.5 text-left" },
+                        React.createElement("span", { className: "text-[11.5px] text-zinc-400 w-[86px] shrink-0" }, fmtKey(r.p.d)),
+                        React.createElement("span", { className: "digi text-[15px] text-zinc-100 flex-1" }, resultOf(r.d)),
+                        badge(r)),
+                    open === r.p.d && React.createElement("div", { className: "px-3 pb-2 grid grid-cols-10 gap-1" }, r.p.set.map((n, i) => React.createElement("span", { key: n, className: `digi text-center rounded text-[12px] py-0.5 border ${hitNums(r.d).includes(n) ? "text-zinc-950 bg-emerald-300 border-emerald-300" : i < 10 ? "text-fuchsia-200 border-fuchsia-400/40" : "text-cyan-200/90 border-cyan-400/30"}` }, pad2(n))))))),
+            sc.res.length > 10 && React.createElement("button", { onClick: () => setShowAll(v => !v), className: "w-full mt-2 rounded-xl py-1.5 text-[12px] border border-zinc-800 text-zinc-400 active:bg-zinc-800" }, showAll ? "ย่อ" : `ดูทั้ง ${sc.res.length} งวด`)));
 }
 
 function Dashboard({ lastCheck: e, onNav: t = () => {
