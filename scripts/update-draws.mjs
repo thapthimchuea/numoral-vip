@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const FILE = new URL('../data/draws.json', import.meta.url);
 const KHAOSOD = 'https://www.khaosod.co.th/laolottery';
+const KHAOSOD_FEED = 'https://www.khaosod.co.th/laolottery/feed'; // RSS — อัปเดตไวกว่าหน้ารวม และมีผลอยู่ในตัว
 const TRUAD = 'https://xn--t3cmiit.com/lao-lottery/history';
 const UA = 'Mozilla/5.0 (compatible; NumoralLaos-bot/1.0; +https://github.com/)';
 const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -42,6 +43,24 @@ export function parseKhaosodArticle(html) {
   if (six) return { n: six, four: six.slice(2) };
   if (four) return { n: four, four };
   return null;
+}
+// ข่าวสด RSS: แต่ละ <item> มีหัวข้อ "งวดประจำวันที่ ..." และเนื้อหาข่าวที่มีผลรางวัล
+export function parseKhaosodFeed(xml) {
+  const res = {}, links = {};
+  for (const it of xml.split('<item>').slice(1)) {
+    const body = it.replace(/<!\[CDATA\[|\]\]>/g, '');
+    const title = plain((body.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '');
+    const d = title.match(/งวดประจำวันที่\s*(\d{1,2})\s+(\S+)\s+(25\d\d)/);
+    if (!d) continue;
+    const mo = TH_MONTHS.indexOf(d[2]);
+    if (mo < 0) continue;
+    const k = key(+d[3] - 543, mo, +d[1]);
+    const link = ((body.match(/<link>([^<]+)<\/link>/) || [])[1] || '').trim();
+    if (link) (links[k] = links[k] || []).push(link);
+    const r = parseKhaosodArticle(body);
+    if (r && !res[k]) res[k] = r;
+  }
+  return { res, links };
 }
 // ผลหวย.com: ลิงก์ /results/lao-lottery/2026-11-19 ที่มีข้อความ "เลขท้าย 4 ตัว 8727"
 export function parseTruad(html) {
@@ -79,19 +98,24 @@ async function main() {
 
   let A = null, B = null;
   try {
-    const idx = parseKhaosodIndex(await get(KHAOSOD));
-    if (!Object.keys(idx).length) throw new Error('อ่านหน้ารวมไม่ได้ (รูปแบบหน้าเว็บอาจเปลี่ยน)');
     A = {};
+    let feed = { res: {}, links: {} };
+    try { feed = parseKhaosodFeed(await get(KHAOSOD_FEED)); } catch (e) { errors.push('khaosod feed: ' + e.message); }
+    Object.assign(A, feed.res);
+    let idx = {};
+    try { idx = parseKhaosodIndex(await get(KHAOSOD)); } catch (e) { errors.push('khaosod index: ' + e.message); }
+    for (const [k, v] of Object.entries(feed.links)) idx[k] = [...new Set([...(idx[k] || []), ...v])];
+    if (!Object.keys(idx).length && !Object.keys(A).length) throw new Error('อ่านทั้ง RSS และหน้ารวมไม่ได้ (รูปแบบหน้าเว็บอาจเปลี่ยน)');
     // งวดใหม่ + งวดที่เก็บไว้แค่ 4 ตัว (เพื่อเติมเลข 6 ตัวให้ครบเมื่อมีข้อมูล)
     const short = [...known.values()].filter(r => r.n.length === 4).map(r => r.d);
-    for (const k of Object.keys(idx).filter(k => (k > latest && k <= today) || short.includes(k)).sort()) {
+    for (const k of Object.keys(idx).filter(k => !A[k] && ((k > latest && k <= today) || short.includes(k))).sort()) {
       let got = false;
       for (const u of idx[k]) {
         try { const r = parseKhaosodArticle(await get(u)); if (r) { A[k] = r; got = true; break; } } catch (e) { errors.push(`khaosod ${k}: ${e.message}`); }
       }
       if (!got) console.log(`khaosod ${k}: บทความยังไม่มีผล`);
     }
-    if (!idx[today]) console.log(`khaosod: หน้ารวมยังไม่มีบทความงวด ${today}`);
+    if (!idx[today] && !A[today]) console.log(`khaosod: ยังไม่มีบทความงวด ${today}`);
   } catch (e) { errors.push('khaosod: ' + e.message); A = null; }
   try {
     B = parseTruad(await get(TRUAD));
@@ -140,6 +164,9 @@ function selfTest() {
   const tr = `<a href="/results/lao-lottery/2026-11-19"><div>งวดวันที่ 19 พฤศจิกายน 2569</div><p>เลขท้าย 4 ตัว</p><p>8727</p></a>
   <a href="https://xn--t3cmiit.com/results/lao-lottery/2024-01-08">งวดวันที่ 8 มกราคม 2567</a>`;
   const i = parseKhaosodIndex(idx), a = parseKhaosodArticle(art), b = parseKhaosodArticle(artBefore), t = parseTruad(tr);
+  const feed = parseKhaosodFeed(`<rss><channel><title>หวยลาว</title><item><title>หวยลาววันนี้ งวดประจำวันที่ 20 พฤศจิกายน 2569 ผลหวยพัฒนา</title><link>https://www.khaosod.co.th/laolottery/news_10479269</link><content:encoded><![CDATA[<p>รางวัลเลข 6 ตัว: 603947</p><p>รางวัลเลขท้าย 4 ตัว: 3947</p>]]></content:encoded></item><item><title>หวยลาววันนี้ งวดประจำวันที่ 23 พฤศจิกายน 2569</title><link>https://x/news_1</link><description>รางวัลเลข 6 ตัว: XXXXXX</description></item></channel></rss>`);
+  const fok = feed.res['20261120'] && feed.res['20261120'].n === '603947' && !feed.res['20261123'] && feed.links['20261123'] && feed.links['20261123'][0] === 'https://x/news_1';
+  if (!fok) { console.log('feed ไม่ผ่าน', feed); process.exitCode = 1; }
   const ok = i['20261119'] && i['20261119'][0].endsWith('news_10477681') && i['20260202'] && Object.keys(i).length === 2
     && a && a.n === '928727' && a.four === '8727' && b === null && t['20261119'] && t['20261119'].four === '8727' && Object.keys(t).length === 1;
   console.log(ok ? 'ผ่าน' : 'ไม่ผ่าน', i, a, b, t);
