@@ -1,15 +1,15 @@
-name: Update Lao VIP draws
+name: Update Lao Pattana draws
 
 on:
   schedule:
-    # เวลาเป็น UTC (ไทย = UTC+7) — หวยลาว VIP ออกทุกวัน 21:30 น. เวลาไทย (= 14:30 UTC)
-    - cron: "40,55 14 * * *"   # 21:40 และ 21:55 น.
-    - cron: "15,45 15 * * *"   # 22:15 และ 22:45 น.
-    - cron: "30 16 * * *"      # 23:30 น.
-    - cron: "10 1 * * *"       # สำรองเช้าวันถัดไป 08:10 น. + ล็อกชุดลุ้นของวันนี้
-    - cron: "20 4 * * *"       # 11:20 น. ล็อกชุดลุ้น (สำรอง)
-    - cron: "50 8 * * *"       # 15:50 น. ล็อกชุดลุ้น (สำรอง)
-    - cron: "40 11 * * *"      # 18:40 น. ล็อกชุดลุ้น (สำรองรอบสุดท้ายก่อน 21:30)
+    # เวลาเป็น UTC (ไทย = UTC+7) — หวยลาวพัฒนาออกจันทร์–ศุกร์ ถ่ายทอดสด 20:00 น. ผลออกราว 20:30 น. (= 13:30 UTC)
+    - cron: "40,55 13 * * 1-5"  # 20:40 และ 20:55 น.
+    - cron: "15,45 14 * * 1-5"  # 21:15 และ 21:45 น.
+    - cron: "30 15 * * 1-5"     # 22:30 น.
+    - cron: "10 1 * * *"        # สำรองเช้าวันถัดไป 08:10 น. + ล็อกชุดลุ้นของวันนี้
+    - cron: "20 4 * * *"        # 11:20 น. ล็อกชุดลุ้น (สำรอง)
+    - cron: "50 8 * * *"        # 15:50 น. ล็อกชุดลุ้น (สำรอง)
+    - cron: "20 11 * * *"       # 18:20 น. ล็อกชุดลุ้น (สำรองรอบสุดท้ายก่อน 20:00)
   workflow_dispatch: {}
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
           node-version: 20
       - name: Self-test parser
         run: node scripts/update-draws.mjs --test
-      - name: Fetch latest Lao VIP results
+      - name: Fetch latest Lao Pattana results
         run: node scripts/update-draws.mjs
       - name: Lock numbers for the next draw (ชุดลุ้น)
         run: node scripts/lock-picks.mjs
@@ -44,5 +44,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add $ADD
-          git commit -m "Add new Lao VIP draws / lock numbers"
+          git commit -m "Add new Lao Pattana draws / lock numbers"
           git push || (git pull --rebase -X theirs && git push)

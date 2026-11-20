@@ -1,10 +1,10 @@
-// Numoral VIP (เวอร์ชันสำหรับเพื่อน) — Cloudflare Worker
+// Numoral Laos (เวอร์ชันสำหรับเพื่อน) — Cloudflare Worker
 // • เปิดแอปได้เฉพาะเครื่องที่ใส่ "รหัสเชิญ" แล้ว (รหัสหนึ่งใช้ได้ไม่เกิน max เครื่อง, ค่าเริ่มต้น 2 = เบราว์เซอร์ + แอปบนหน้าจอโฮม)
 // • ข้อมูลผลรางวัล (/data/*) ดึงต่อจากเว็บเดิม (GitHub Pages) จึงอัปเดตพร้อมกันโดยไม่ต้องตั้งระบบดึงผลใหม่
 // • /admin = หน้าจัดการรหัส (ใช้รหัสผู้ดูแลที่ตั้งเป็น secret ADMIN_PASSWORD)
 // ต้องมี: KV binding "CODES", assets binding "ASSETS", secrets ADMIN_PASSWORD + SESSION_SECRET
 
-const DATA_ORIGIN = 'https://thapthimchuea.github.io/numoral-vip'; // ลิงก์ GitHub Pages ของ Numoral VIP (แก้ถ้าตั้งชื่อ repo ต่างจากนี้)
+const DATA_ORIGIN = 'https://thapthimchuea.github.io/numoral-vip'; // ลิงก์ GitHub Pages ของ Numoral Laos (แก้ถ้าตั้งชื่อ repo ต่างจากนี้)
 const SESSION_COOKIE = 'nv_s', ADMIN_COOKIE = 'nv_a';
 const SESSION_DAYS = 400, ADMIN_HOURS = 12, DEFAULT_MAX = 2;
 const PUBLIC_PATHS = new Set(['/manifest.json', '/sw.js', '/robots.txt', '/favicon.ico']); // เบราว์เซอร์โหลดไฟล์พวกนี้โดยไม่ส่งคุกกี้
@@ -66,8 +66,8 @@ button:disabled{opacity:.5}.err{color:#fda4af;min-height:20px;font-size:13.5px;m
 </style></head><body>${inner}</body></html>`;
 
 function invitePage(prefill = '') {
-  return html(SHELL('Numoral VIP — ใส่รหัสเชิญ', `<div class="card"><div class="in">
-<h1>Numoral VIP</h1><p>แอปนี้เปิดให้เฉพาะคนที่ได้รับเชิญ กรุณาใส่รหัสเชิญที่ได้รับ</p>
+  return html(SHELL('Numoral Laos — ใส่รหัสเชิญ', `<div class="card"><div class="in">
+<h1>Numoral Laos</h1><p>แอปนี้เปิดให้เฉพาะคนที่ได้รับเชิญ กรุณาใส่รหัสเชิญที่ได้รับ</p>
 <form id="f" style="margin-top:16px"><input id="c" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="VIP-XXXX-XXXX" value="${esc(prefill)}" maxlength="16"><button id="b">เข้าใช้งาน</button><div class="err" id="e"></div></form>
 <p class="small">รหัสหนึ่งใช้ได้ไม่เกิน 2 เครื่อง/เบราว์เซอร์ (เช่น เบราว์เซอร์ + แอปบนหน้าจอโฮม) · ถ้าติดตั้งลงหน้าจอโฮมแล้วถูกถามรหัสอีก ให้ใส่รหัสเดิม</p>
 <p class="small">ข้อมูลทั้งหมดเป็นการคำนวณทางสถิติเพื่อความบันเทิงและการศึกษาความน่าจะเป็นเท่านั้น</p>
@@ -124,7 +124,7 @@ ${uses.map(u => `<div class="small">• ${deviceLabel(u.ua || '')} · ${thTime(u
 <div style="margin-top:6px"><button type="button" onclick="copyLink(this,'${link}')" style="width:auto;margin:4px 4px 0 0;padding:6px 10px;font-size:12px;font-weight:600">คัดลอกลิงก์เชิญ</button><button type="button" class="sharebtn" onclick="shareLink('${link}')" style="display:none;width:auto;margin:4px 4px 0 0;padding:6px 10px;font-size:12px;font-weight:600;background:linear-gradient(90deg,#00c853,#00b8d4)">แชร์…</button>${r.revoked ? act('restore', 'เปิดใช้อีกครั้ง', '#86efac') : act('revoke', 'ยกเลิกรหัส', '#fda4af')}${uses.length ? act('reset', 'ล้างเครื่องที่ใช้') : ''}${act('delete', 'ลบ', '#71717a')}</div></div>`;
   }).join('');
   const used = recs.filter(([, r]) => (r.uses || []).length && !r.revoked).length;
-  return html(SHELL('Numoral VIP — จัดการรหัสเชิญ', `<div class="card" style="max-width:560px"><div class="in">
+  return html(SHELL('Numoral Laos — จัดการรหัสเชิญ', `<div class="card" style="max-width:560px"><div class="in">
 <div style="display:flex;justify-content:space-between;align-items:center"><h1>รหัสเชิญ</h1><a href="/admin/logout" class="small" style="color:#a1a1aa">ออกจากระบบ</a></div>
 <p>ทั้งหมด ${recs.length} รหัส · มีคนใช้งานอยู่ ${used} รหัส</p>
 ${msg ? `<p style="color:#86efac">${esc(msg)}</p>` : ''}
@@ -144,13 +144,13 @@ async function copyLink(btn, t) {
   if (!ok) { const inp = btn.parentElement.previousElementSibling; if (inp) { inp.focus(); inp.select(); } }
   setTimeout(() => (btn.textContent = 'คัดลอกลิงก์เชิญ'), 4000);
 }
-function shareLink(t) { navigator.share({ title: 'Numoral VIP', text: 'ลิงก์เชิญเข้าใช้แอป Numoral VIP (ใช้ได้เฉพาะคุณ)', url: t }).catch(() => {}); }
+function shareLink(t) { navigator.share({ title: 'Numoral Laos', text: 'ลิงก์เชิญเข้าใช้แอป Numoral Laos (ใช้ได้เฉพาะคุณ)', url: t }).catch(() => {}); }
 if (navigator.share) document.querySelectorAll('.sharebtn').forEach(b => (b.style.display = 'inline-block'));
 </script>
 <p class="small" style="margin-top:14px">ส่ง "ลิงก์เชิญ" ให้เพื่อนทีละคน (มีรหัสอยู่ในลิงก์แล้ว) · ถ้าเพื่อนส่งต่อหลังใช้ครบจำนวนเครื่อง คนอื่นจะเปิดไม่ได้</p>
 </div></div>`));
 }
-const adminLogin = (err = '') => html(SHELL('Numoral VIP — ผู้ดูแล', `<div class="card"><div class="in"><h1>ผู้ดูแล</h1><p>ใส่รหัสผู้ดูแลเพื่อจัดการรหัสเชิญ</p>
+const adminLogin = (err = '') => html(SHELL('Numoral Laos — ผู้ดูแล', `<div class="card"><div class="in"><h1>ผู้ดูแล</h1><p>ใส่รหัสผู้ดูแลเพื่อจัดการรหัสเชิญ</p>
 <form method="post" action="/admin/login" style="margin-top:14px"><input type="password" name="p" autocomplete="current-password" placeholder="รหัสผู้ดูแล" style="letter-spacing:0"><button>เข้าสู่ระบบ</button><div class="err">${esc(err)}</div></form></div></div>`), err ? 401 : 200);
 
 const loginFails = new Map();

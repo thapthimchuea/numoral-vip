@@ -1,7 +1,7 @@
-/* Numoral VIP service worker
+/* Numoral Laos service worker
    เมื่ออัปโหลดไฟล์เวอร์ชันใหม่ ให้เปลี่ยนเลข VERSION ด้านล่าง (เช่น v1 -> v2) เพื่อให้มือถือทุกเครื่องได้ไฟล์ใหม่ */
-const VERSION = 'v1.2.0';
-const CACHE = 'numoralvip-' + VERSION;
+const VERSION = 'l2.0.0';
+const CACHE = 'numoralaos-' + VERSION;
 const APP_SHELL = [
   './', './index.html', './app.js', './vendor.js', './styles.css', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png',
@@ -21,7 +21,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('numoralvip-') && k !== CACHE).map(k => caches.delete(k))))
+    caches.keys().then(keys => Promise.all(keys.filter(k => (k.startsWith('numoralaos-') || k.startsWith('numoralvip-')) && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

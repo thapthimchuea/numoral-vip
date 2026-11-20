@@ -1,4 +1,4 @@
-# Numoral VIP สำหรับเพื่อน (ต้องใส่รหัสเชิญ) — ใช้คู่กับ deploy.mjs
+# Numoral Laos สำหรับเพื่อน (ต้องใส่รหัสเชิญ) — ใช้คู่กับ deploy.mjs
 name = "numoral-vip-friends"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"

@@ -13,7 +13,7 @@ function loadCore() {
   const cut = src.indexOf('const Credit =');
   if (cut < 0) throw new Error('ไม่พบจุดตัดใน app.js');
   const React = { useState() {}, useMemo() {}, useEffect() {}, useRef() {}, createElement() {}, createContext: v => ({ v }), useContext() {} };
-  const code = src.slice(0, cut) + '\nreturn { BASE_DRAWS, predict, makeDraw, keyOf, keyToDate, DRAW_HOUR, DRAW_MIN };';
+  const code = src.slice(0, cut) + '\nreturn { BASE_DRAWS, predict, makeDraw, keyOf, keyToDate, DRAW_HOUR, DRAW_MIN, isDrawDay: typeof isDrawDay === "function" ? isDrawDay : null };';
   return new Function('React', 'localStorage', 'window', 'navigator', 'document', code)(React, { getItem: () => null, setItem() {} }, {}, {}, {});
 }
 
@@ -24,14 +24,16 @@ const addDays = (k, n) => ymd(new Date(Date.UTC(+k.slice(0, 4), +k.slice(4, 6) -
 const C = loadCore();
 const db = JSON.parse(readFileSync(DRAWS, 'utf8'));
 const have = new Set(C.BASE_DRAWS.map(d => C.keyOf(d.date)));
-const online = (db.draws || []).filter(r => /^\d{8}$/.test(r.d) && /^\d{5}$/.test(r.n) && !have.has(r.d))
+const online = (db.draws || []).filter(r => /^\d{8}$/.test(r.d) && /^(\d{4,6})$/.test(r.n) && !have.has(r.d))
   .map(r => r.b !== undefined ? C.makeDraw(C.keyToDate(r.d), r.n, r.b, 'online') : C.makeDraw(C.keyToDate(r.d), r.n, 'online'));
 const draws = [...online, ...C.BASE_DRAWS].sort((a, b) => b.date - a.date);
 const latest = C.keyOf(draws[0].date);
 
 const nowMs = Date.now();
 const todayBkk = ymd(new Date(nowMs + 7 * 3600e3));
-const target = [addDays(latest, 1), todayBkk].sort().pop();
+let target = [addDays(latest, 1), todayBkk].sort().pop();
+// หวยที่ไม่ได้ออกทุกวัน (เช่น ลาวพัฒนา จันทร์–ศุกร์) → เลื่อนไปวันออกถัดไป
+if (C.isDrawDay) for (let i = 0; i < 14 && !C.isDrawDay(C.keyToDate(target)); i++) target = addDays(target, 1);
 // เวลาออก (เวลาไทย) ของวันเป้าหมาย แปลงเป็นเวลา UTC
 const drawMs = Date.UTC(+target.slice(0, 4), +target.slice(4, 6) - 1, +target.slice(6, 8), C.DRAW_HOUR - 7, C.DRAW_MIN);
 
