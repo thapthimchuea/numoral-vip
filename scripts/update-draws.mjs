@@ -56,11 +56,14 @@ export function parseTruad(html) {
 async function get(url) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 20000);
   try {
-    const r = await fetch(url, { headers: { 'user-agent': UA, 'accept-language': 'th,en;q=0.8' }, signal: ctl.signal });
+    // ใส่ตัวกันแคช (?t=...) — กันได้หน้าเก่าที่ CDN เก็บไว้ก่อนผลออก
+    const u = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    const r = await fetch(u, { headers: { 'user-agent': UA, 'accept-language': 'th,en;q=0.8', 'cache-control': 'no-cache', pragma: 'no-cache' }, signal: ctl.signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.text();
   } finally { clearTimeout(tm); }
 }
+function bangkokHour() { return new Date(Date.now() + 7 * 3600e3).getUTCHours(); }
 function bangkokToday() {
   const now = new Date(Date.now() + 7 * 3600e3);
   return key(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -79,11 +82,16 @@ async function main() {
     const idx = parseKhaosodIndex(await get(KHAOSOD));
     if (!Object.keys(idx).length) throw new Error('อ่านหน้ารวมไม่ได้ (รูปแบบหน้าเว็บอาจเปลี่ยน)');
     A = {};
-    for (const k of Object.keys(idx).filter(k => k > latest && k <= today).sort()) {
+    // งวดใหม่ + งวดที่เก็บไว้แค่ 4 ตัว (เพื่อเติมเลข 6 ตัวให้ครบเมื่อมีข้อมูล)
+    const short = [...known.values()].filter(r => r.n.length === 4).map(r => r.d);
+    for (const k of Object.keys(idx).filter(k => (k > latest && k <= today) || short.includes(k)).sort()) {
+      let got = false;
       for (const u of idx[k]) {
-        try { const r = parseKhaosodArticle(await get(u)); if (r) { A[k] = r; break; } } catch (e) { errors.push(`khaosod ${k}: ${e.message}`); }
+        try { const r = parseKhaosodArticle(await get(u)); if (r) { A[k] = r; got = true; break; } } catch (e) { errors.push(`khaosod ${k}: ${e.message}`); }
       }
+      if (!got) console.log(`khaosod ${k}: บทความยังไม่มีผล`);
     }
+    if (!idx[today]) console.log(`khaosod: หน้ารวมยังไม่มีบทความงวด ${today}`);
   } catch (e) { errors.push('khaosod: ' + e.message); A = null; }
   try {
     B = parseTruad(await get(TRUAD));
@@ -92,6 +100,11 @@ async function main() {
 
   const cands = new Set([...Object.keys(A || {}), ...Object.keys(B || {})].filter(k => k > latest && k <= today));
   const added = [], skipped = [];
+  // เติมเลข 6 ตัวให้งวดที่เก็บไว้แค่เลขท้าย 4 ตัว (เมื่อเลขท้าย 4 ตัวตรงกัน)
+  for (const r of known.values()) {
+    const a = A && A[r.d];
+    if (r.n.length === 4 && a && a.n.length === 6 && a.four === r.n) added.push({ d: r.d, n: a.n });
+  }
   for (const k of [...cands].sort()) {
     const a = A && A[k], b = B && B[k];
     if (a && b) {
@@ -99,8 +112,9 @@ async function main() {
       else skipped.push(`${k}: ไม่ตรงกัน (${a.n} กับ ${b.n})`);
       continue;
     }
-    const one = a || b, otherDown = a ? !B : !A, old = k < today;
-    if (otherDown || old) added.push({ d: k, n: one.n });
+    // late = ผลออกตั้งแต่ราว 20:30 น. ถ้าถึง 22:00 น. แล้วอีกแหล่งยังไม่ลง ใช้แหล่งเดียวไปก่อน (เช็กซ้ำรอบหน้าเพื่อเติมเลขให้ครบ)
+    const one = a || b, otherDown = a ? !B : !A, old = k < today, late = k === today && bangkokHour() >= 22;
+    if (otherDown || old || late) added.push({ d: k, n: one.n });
     else skipped.push(`${k}: รออีกแหล่งยืนยัน (${one.n})`);
   }
 

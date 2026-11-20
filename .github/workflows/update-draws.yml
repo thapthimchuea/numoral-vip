@@ -6,6 +6,7 @@ on:
     - cron: "40,55 13 * * 1-5"  # 20:40 และ 20:55 น.
     - cron: "15,45 14 * * 1-5"  # 21:15 และ 21:45 น.
     - cron: "30 15 * * 1-5"     # 22:30 น.
+    - cron: "5,25,50 13-16 * * 1-5"  # รอบถี่เพิ่ม 20:05–23:50 น. (กัน GitHub เลื่อน/ข้ามรอบ)
     - cron: "10 1 * * *"        # สำรองเช้าวันถัดไป 08:10 น. + ล็อกชุดลุ้นของวันนี้
     - cron: "20 4 * * *"        # 11:20 น. ล็อกชุดลุ้น (สำรอง)
     - cron: "50 8 * * *"        # 15:50 น. ล็อกชุดลุ้น (สำรอง)
@@ -38,7 +39,7 @@ jobs:
         run: |
           ADD=""
           # บันทึกผลเฉพาะเมื่อมีงวดใหม่ (ไม่ commit แค่เพราะเวลาเช็กเปลี่ยน)
-          if git diff -U0 -- data/draws.json | grep -q '^+.*"d":'; then ADD="data/draws.json"; else git checkout -- data/draws.json; fi
+          if git diff -U0 -- data/draws.json | grep -q -E '^\+.*"(d|n)":'; then ADD="data/draws.json"; else git checkout -- data/draws.json; fi
           if [ -n "$(git status --porcelain -- data/picks.json)" ]; then ADD="$ADD data/picks.json"; fi
           if [ -z "$ADD" ]; then echo "no change"; exit 0; fi
           git config user.name "github-actions[bot]"
