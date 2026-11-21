@@ -8,3 +8,5 @@
 .grid-cols-10{grid-template-columns:repeat(10,minmax(0,1fr))}.text-zinc-950{color:#09090b}.border-emerald-300{border-color:#6ee7b7}
 
 .bg-yellow-300{background-color:#fde047}
+.pl-7{padding-left:1.75rem}
+.space-y-0\.5>:not([hidden])~:not([hidden]){margin-top:.125rem}

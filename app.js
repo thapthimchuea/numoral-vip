@@ -957,6 +957,144 @@ function Favorites() {
         return React.createElement("div", { key: o, className: `flex items-center gap-2.5 rounded-xl border px-3 py-2 ${c ? "border-yellow-300/60 bg-yellow-300/10" : "border-zinc-800 bg-zinc-900/60"}` }, React.createElement("span", { className: "digi text-xl font-black text-yellow-200", style: { textShadow: "0 0 8px rgba(255,214,0,.7)" } }, pad2(o)), React.createElement("span", { className: "flex-1 text-[10.5px] text-zinc-400 leading-tight" }, c ? React.createElement("b", { className: "text-yellow-200" }, "ออกงวดล่าสุด!") : React.createElement(React.Fragment, null, "ออก ", d, " ครั้ง", React.createElement("br", null), p >= 0 ? `ล่าสุด ${p} งวดก่อน` : "ยังไม่เคยออก")), React.createElement("button", { onClick: () => a(t.filter(g => g !== o)), "aria-label": `ลบเลข ${pad2(o)}`, className: "text-zinc-500 p-1" }, React.createElement(Icon, { name: "X", size: 14 })));
     })));
 }
+// ===== สถิติสูตร: ระบบล็อกเลข 10 ตัวของทุกสูตรไว้ก่อนผลออกทุกงวด แล้วตรวจผลให้อัตโนมัติ =====
+const fstatTabStore = createStore("numoralaos.fstatTab.v1", "bottom");
+const FSTAT_TABS = [{ id: "bottom", label: "2 ตัวล่าง" }, { id: "top", label: "2 ตัวบน" }, { id: "either", label: "บนหรือล่าง" }, { id: "top3", label: "3 ตัวบน" }];
+const FSTAT_BASE = { bottom: 10, top: 10, either: 19, top3: 1 };
+let fstatCache = null;
+const fstatSplit = (s, w) => { const out = []; for (let i = 0; i + w <= String(s || "").length; i += w) out.push(+String(s).slice(i, i + w)); return out; };
+const fstatTop3 = d => +String(d.first).replace(/\D/g, "").slice(-3);
+// คืนเลขที่ถูก (ว่าง = ไม่ถูก)
+const fstatHits = (p, d, t) => {
+    if (t === "top3") { const r = fstatTop3(d); return p.f3.includes(r) ? [r] : []; }
+    if (t === "bottom") return p.f2.includes(d.bottom) ? [d.bottom] : [];
+    if (t === "top") return p.f2.includes(d.top) ? [d.top] : [];
+    return [...new Set([d.top, d.bottom].filter(x => p.f2.includes(x)))];
+};
+async function loadFstat() {
+    const j = await fetchJSON(`./data/formulas.json?t=${Date.now()}`);
+    if (!j || !Array.isArray(j.picks)) throw new Error("bad formulas file");
+    const picks = j.picks.filter(p => p && /^\d{8}$/.test(p.d)).map(p => ({
+        d: p.d, at: p.at, base: p.base,
+        f2: Object.fromEntries(Object.entries(p.f2 || {}).map(([k, v]) => [k, fstatSplit(v, 2)])),
+        f3: Object.fromEntries(Object.entries(p.f3 || {}).map(([k, v]) => [k, fstatSplit(v, 3)]))
+    }));
+    fstatCache = { since: j.since || (picks[0] && picks[0].d) || null, n: j.n || 10, picks };
+    return fstatCache;
+}
+function FormulaStatsCard() {
+    const draws = useDraws();
+    const [t, setT] = useStore(fstatTabStore);
+    const [data, setData] = useState(fstatCache);
+    const [err, setErr] = useState(false);
+    const [showAll, setShowAll] = useState(false);
+    const [open, setOpen] = useState(null);
+    useEffect(() => { let on = true; loadFstat().then(v => on && setData(v)).catch(() => on && setErr(true)); return () => { on = false; }; }, [draws.length]);
+    const byKey = useMemo(() => Object.fromEntries(draws.map(d => [d.id, d])), [draws]);
+    const picks = data ? data.picks : [];
+    const done = picks.filter(p => byKey[p.d]).sort((a, b) => b.d.localeCompare(a.d));
+    const pending = picks.filter(p => !byKey[p.d]);
+    const field = t === "top3" ? "f3" : "f2";
+    const rows = useMemo(() => {
+        const m = {};
+        done.forEach(p => Object.entries(p[field]).forEach(([id, nums]) => {
+            if (!nums.length) return;
+            const r = m[id] || (m[id] = { id, n: 0, hit: 0, last: null, dates: [], streak: 0, best: 0, run: 0 });
+            const h = fstatHits({ f2: nums, f3: nums }, byKey[p.d], t);
+            r.n++;
+            if (h.length) { r.hit++; r.dates.push(p.d); if (!r.last) r.last = p.d; }
+        }));
+        // ถูกติดกัน: นับจากงวดใหม่ไปเก่า
+        Object.values(m).forEach(r => {
+            let cur = 0, best = 0, stillCur = true;
+            done.forEach(p => {
+                const nums = p[field][r.id];
+                if (!nums || !nums.length) return;
+                const ok = fstatHits({ f2: nums, f3: nums }, byKey[p.d], t).length > 0;
+                if (ok) { cur++; best = Math.max(best, cur); } else { if (stillCur) r.streak = cur; stillCur = false; cur = 0; }
+            });
+            if (stillCur) r.streak = cur;
+            r.best = Math.max(best, cur);
+        });
+        return Object.values(m).sort((a, b) => b.hit / b.n - a.hit / a.n || b.hit - a.hit || a.id.localeCompare(b.id));
+    }, [data, draws, t]);
+    const base = FSTAT_BASE[t];
+    const resultOf = d => t === "top3" ? pad3(fstatTop3(d)) : t === "top" ? pad2(d.top) : t === "bottom" ? pad2(d.bottom) : `${pad2(d.top)} / ${pad2(d.bottom)}`;
+    const fmtNum = n => t === "top3" ? pad3(n) : pad2(n);
+    const tabBtns = React.createElement("div", { className: "grid grid-cols-4 gap-1.5 mb-3" }, FSTAT_TABS.map(x => React.createElement("button", { key: x.id, onClick: () => setT(x.id), className: `rounded-lg py-1.5 text-[12px] border ${t === x.id ? "chip-active" : "border-zinc-800 bg-zinc-900/60 text-zinc-400"}` }, x.label)));
+    const head = React.createElement(SectionTitle, { icon: "Trophy", className: "glow-violet" }, "สถิติสูตร (ระบบเก็บให้อัตโนมัติ)");
+    if (!data) return React.createElement("div", { className: "glass rounded-2xl p-4" }, head, React.createElement("p", { className: "text-[12.5px] text-zinc-500" }, err ? "โหลดสถิติสูตรไม่ได้ ลองใหม่เมื่อออนไลน์" : "กำลังโหลด…"));
+    const histN = showAll ? 60 : 10;
+    return React.createElement("div", { className: "glass rounded-2xl p-4" }, head,
+        React.createElement("p", { className: "text-[12px] text-zinc-500 -mt-1 mb-3" }, "ก่อนผลออกทุกงวด ระบบล็อกเลข ", data.n, " ตัวแรกของทุกสูตรไว้ แล้วตรวจให้เองเมื่อผลออก · เริ่มเก็บ ", data.since ? fmtKey(data.since) : "-", " · ไม่นับย้อนหลัง"),
+        tabBtns,
+        rows.length === 0 ? React.createElement("p", { className: "text-[12.5px] text-zinc-500 mb-2" }, "ยังไม่มีงวดที่ตรวจผล · ", pending.length ? `ล็อกงวด ${fmtKey(pending[0].d)} ไว้แล้ว รอผลออก` : "ระบบจะล็อกงวดถัดไปให้เอง")
+            : React.createElement("div", { className: "space-y-1.5 mb-3" },
+                React.createElement("div", { className: "flex text-[10.5px] text-zinc-500 px-1" }, React.createElement("span", { className: "flex-1" }, "สูตร (เรียงจากถูกบ่อยสุด)"), React.createElement("span", { className: "w-16 text-right" }, "ถูก/ลุ้น"), React.createElement("span", { className: "w-20 text-right" }, "ถูกล่าสุด")),
+                rows.map((r, i) => {
+                    const pct = r.hit / r.n * 100;
+                    const isOpen = open === r.id;
+                    return React.createElement("div", { key: r.id, className: "rounded-xl border border-zinc-800 bg-zinc-900/60" },
+                        React.createElement("button", { onClick: () => setOpen(isOpen ? null : r.id), className: "w-full text-left px-3 py-2" },
+                            React.createElement("div", { className: "flex items-center gap-2 text-[12.5px]" },
+                                React.createElement("span", { className: `w-5 text-center digi ${i < 3 && r.hit ? "text-yellow-300" : "text-zinc-500"}` }, i + 1),
+                                React.createElement("span", { className: `flex-1 truncate ${r.id === "random" ? "text-zinc-400" : "text-zinc-200"}` }, formulaName(r.id) || r.id),
+                                React.createElement("span", { className: "w-16 text-right digi text-zinc-200" }, r.hit, "/", r.n),
+                                React.createElement("span", { className: "w-20 text-right text-[11px] text-zinc-400" }, r.last ? fmtKey(r.last) : "-")),
+                            React.createElement("div", { className: "flex items-center gap-2 mt-1 pl-7" },
+                                React.createElement("div", { className: "flex-1 h-2 rounded-full bg-zinc-800 overflow-hidden relative" },
+                                    React.createElement("div", { className: "h-full rounded-full bg-gradient-to-r from-yellow-400 to-fuchsia-500", style: { width: `${Math.min(100, pct / Math.max(base * 3, 1) * 100)}%` } }),
+                                    React.createElement("div", { className: "absolute top-0 bottom-0 w-0.5 bg-yellow-300", style: { left: `${Math.min(100, base / Math.max(base * 3, 1) * 100)}%` } })),
+                                React.createElement("span", { className: "w-12 text-right text-[11px] digi text-zinc-300" }, pct.toFixed(t === "top3" ? 1 : 0), "%"))),
+                        isOpen && React.createElement("div", { className: "px-3 pb-2 text-[11.5px] text-zinc-400 space-y-0.5" },
+                            React.createElement("p", null, "ถูกติดกันตอนนี้ ", r.streak, " งวด · ติดกันสูงสุด ", r.best, " งวด"),
+                            React.createElement("p", null, r.dates.length ? "ถูกวันที่: " + r.dates.slice(0, 12).map(fmtKey).join(", ") + (r.dates.length > 12 ? ` และอีก ${r.dates.length - 12} งวด` : "") : "ยังไม่เคยถูก")));
+                }),
+                React.createElement("p", { className: "text-[10.5px] text-zinc-500 px-1" }, "เส้นเหลือง = เกณฑ์สุ่ม ", base, "% (เลข ", data.n, " ตัว) · \"สุ่มล้วน\" คือสูตรเทียบ · ต้องเก็บหลายสิบงวดถึงจะเริ่มเชื่อถือได้")),
+        done.length > 0 && React.createElement("div", { className: "mt-1" },
+            React.createElement("p", { className: "text-[12px] text-zinc-300 mb-1.5" }, "ผลรายงวด · สูตรที่ถูก"),
+            React.createElement("div", { className: "space-y-1.5" }, done.slice(0, histN).map(p => {
+                const d = byKey[p.d];
+                const hits = Object.entries(p[field]).map(([id, nums]) => ({ id, h: fstatHits({ f2: nums, f3: nums }, d, t) })).filter(x => x.h.length);
+                return React.createElement("div", { key: p.d, className: "rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[12px]" },
+                    React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("span", { className: "text-zinc-300" }, fmtKey(p.d)), React.createElement("span", { className: "digi text-fuchsia-200" }, "ผล ", resultOf(d))),
+                    React.createElement("p", { className: `mt-0.5 ${hits.length ? "text-emerald-300" : "text-zinc-500"}` }, hits.length ? `ถูก ${hits.length} สูตร: ` + hits.map(x => `${formulaName(x.id) || x.id} (${x.h.map(fmtNum).join(", ")})`).join(" · ") : "ไม่มีสูตรไหนถูก"));
+            })),
+            done.length > 10 && React.createElement("button", { onClick: () => setShowAll(!showAll), className: "mt-2 text-[11.5px] text-zinc-400 underline" }, showAll ? "ย่อ" : `ดูเพิ่ม (ทั้งหมด ${done.length} งวด)`)),
+        pending.length > 0 && rows.length > 0 && React.createElement("p", { className: "text-[11px] text-zinc-500 mt-2" }, "ล็อกงวด ", pending.map(p => fmtKey(p.d)).join(", "), " ไว้แล้ว · รอผลออก"));
+}
+// ===== สรุปตามสูตร จากบันทึกผลทำนายที่ผู้ใช้กดบันทึกเอง =====
+function JournalFormulaSummary() {
+    const draws = useDraws();
+    const last3 = useLast3();
+    const [items] = useStore(journalStore);
+    const byKey = useMemo(() => new Map(draws.map(d => [d.id, d])), [draws]);
+    const rows = useMemo(() => {
+        const m = {};
+        items.forEach(r => {
+            const d = byKey.get(r.target);
+            if (!d) return;
+            const h = hitsFor(r.pairs, d, r.mode, last3);
+            if (!h) return;
+            const k = `${r.formula}|${r.mode || "2"}`;
+            const x = m[k] || (m[k] = { formula: r.formula, mode: r.mode || "2", n: 0, hit: 0, base: 0, dates: [] });
+            x.n++, x.base += baseFor(r.pairs, d, r.mode, last3);
+            if (h.length) x.hit++, x.dates.push({ d: r.target, nums: h.map(v => padM(v, r.mode)) });
+        });
+        return Object.values(m).map(x => ({ ...x, base: x.base / x.n * 100, dates: x.dates.sort((a, b) => b.d.localeCompare(a.d)) })).sort((a, b) => b.hit / b.n - a.hit / a.n || b.n - a.n);
+    }, [items, draws, last3]);
+    if (!rows.length) return null;
+    return React.createElement("div", { className: "glass rounded-2xl p-4" },
+        React.createElement(SectionTitle, { icon: "Gauge", className: "glow-violet" }, "สรุปตามสูตร (จากบันทึกของฉัน)"),
+        React.createElement("p", { className: "text-[12px] text-zinc-500 -mt-1 mb-3" }, "นับเฉพาะรายการที่กดบันทึกไว้และผลออกแล้ว · ข้อมูลอยู่ในเครื่องนี้เท่านั้น"),
+        React.createElement("div", { className: "space-y-1.5" }, rows.map(x => React.createElement("div", { key: x.formula + x.mode, className: "rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[12px]" },
+            React.createElement("div", { className: "flex items-center gap-2" },
+                React.createElement("span", { className: "flex-1 truncate text-zinc-200" }, formulaName(x.formula) || x.formula, React.createElement("span", { className: "text-zinc-500" }, " · ", modeLabel(x.mode))),
+                React.createElement("span", { className: "digi text-zinc-200" }, x.hit, "/", x.n),
+                React.createElement("span", { className: "w-24 text-right text-[11px] text-zinc-400" }, (x.hit / x.n * 100).toFixed(0), "% (สุ่ม ", x.base.toFixed(x.base < 5 ? 1 : 0), "%)")),
+            React.createElement("p", { className: `mt-0.5 text-[11px] ${x.dates.length ? "text-emerald-300" : "text-zinc-500"}` }, x.dates.length ? "ถูก: " + x.dates.slice(0, 8).map(v => `${fmtKey(v.d)} (${v.nums.join(", ")})`).join(" · ") + (x.dates.length > 8 ? ` และอีก ${x.dates.length - 8} ครั้ง` : "") : "ยังไม่เคยถูก")))));
+}
+
 function Journal() {
     const e = useDraws();
     const t = useLast3();
@@ -1097,7 +1235,7 @@ function Spending() {
     }), ie.length > 6 && React.createElement("button", { onClick: () => X(!W), className: "w-full text-[12px] text-zinc-400 underline py-1" }, W ? "ย่อ" : `ดูทุกงวด (${ie.length})`)), React.createElement("p", { className: "text-[11px] text-zinc-500 mt-3" }, "ข้อมูลเก็บในเครื่องนี้เท่านั้น · เล่นอย่างพอดี ใช้เงินที่เสียได้โดยไม่เดือดร้อน"));
 }
 function MyTab() {
-    return React.createElement("div", { className: "space-y-5 fade-in" }, React.createElement(Favorites, null), React.createElement(Journal, null), React.createElement(Spending, null));
+    return React.createElement("div", { className: "space-y-5 fade-in" }, React.createElement(Favorites, null), React.createElement(FormulaStatsCard, null), React.createElement(Journal, null), React.createElement(JournalFormulaSummary, null), React.createElement(Spending, null));
 }
 function lowerGammaReg(e, t) {
     if (t <= 0)
