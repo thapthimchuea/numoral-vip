@@ -100,3 +100,22 @@ if (old && !old.set3 && !tooLate) {
     console.log(`สถิติสูตร: ล็อกงวด ${target} · 2 ตัว ${Object.keys(f2).length} สูตร · 3 ตัว ${Object.keys(f3).length} สูตร`);
   }
 }
+
+// ===== สถิติสูตร: เลขเด็ดสำนักดัง (จาก data/tips.json) — ใส่/อัปเดตได้จนถึงก่อนเวลาออกรางวัลของงวดนั้น =====
+{
+  const TF = new URL('data/tips.json', ROOT), FF = new URL('data/formulas.json', ROOT);
+  const late = nowMs > drawMs - LOCK_MARGIN_MIN * 60e3;
+  if (existsSync(TF) && existsSync(FF) && !late) {
+    const tips = JSON.parse(readFileSync(TF, 'utf8')), e = tips.draws && tips.draws[target];
+    const fx = JSON.parse(readFileSync(FF, 'utf8')), p = (fx.picks || []).find(x => x.d === target);
+    if (e && p) {
+      // เรียงเลขตามจำนวนสำนักที่พูดถึง (มากไปน้อย) แล้วตามลำดับที่ปรากฏ — เอา 10 ตัวแรก
+      const rank = key => { const m = new Map(); (e.entries || []).forEach((en, i) => (en[key] || []).forEach((n, j) => { const r = m.get(n) || { n, c: 0, o: i * 100 + j }; r.c++; m.set(n, r); })); return [...m.values()].sort((a, b) => b.c - a.c || a.o - b.o).slice(0, 10).map(r => r.n); };
+      const t2 = rank('nums').map(n => pad(n)).join(''), t3 = rank('nums3').map(n => pad(n, 3)).join('');
+      let ch = false;
+      if (t2 && p.f2.tips !== t2) { p.f2.tips = t2; ch = true; }
+      if (t3 && p.f3.tips !== t3) { p.f3.tips = t3; ch = true; }
+      if (ch) { p.tipsAt = new Date(nowMs).toISOString(); writeFileSync(FF, JSON.stringify(fx) + '\n'); console.log(`สถิติสูตร: ใส่เลขเด็ดสำนักดังงวด ${target} (${(e.entries || []).length} สำนัก)`); }
+    }
+  }
+}

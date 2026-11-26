@@ -5,6 +5,7 @@ ADD=""
 if git diff -U0 -- data/draws.json | grep -q -E '^\+.*"(d|n)":'; then ADD="data/draws.json"; else git checkout -- data/draws.json 2>/dev/null || true; fi
 if [ -n "$(git status --porcelain -- data/picks.json)" ]; then ADD="$ADD data/picks.json"; fi
 if [ -n "$(git status --porcelain -- data/formulas.json)" ]; then ADD="$ADD data/formulas.json"; fi
+if [ -n "$(git status --porcelain -- data/tips.json)" ]; then ADD="$ADD data/tips.json"; fi
 if [ -z "$ADD" ]; then echo "no change"; exit 0; fi
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

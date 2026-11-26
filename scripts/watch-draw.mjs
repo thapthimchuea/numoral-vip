@@ -25,6 +25,14 @@ if (hourNow() < FROM || hourNow() >= UNTIL) { console.log(`นอกช่วง
 console.log(`เริ่มเฝ้าผลงวด ${key} จนถึง ${UNTIL} น. (เช็กทุก 5 นาที)`);
 while (hourNow() < UNTIL && Date.now() < STOP_AT) {
   await new Promise(r => setTimeout(r, STEP_MS));
+  // ก่อนเวลาออก: ดึงเลขเด็ดสำนักดังเพิ่ม (บางสำนักลงใกล้เวลาออก) แล้วล็อก/บันทึกทันที
+  if (process.env.TIPS_LOTTO && hourNow() < +(process.env.WATCH_TIPS_UNTIL || 0)) {
+    try {
+      execFileSync('node', [new URL('./update-tips.mjs', import.meta.url).pathname, `--lotto=${process.env.TIPS_LOTTO}`], { stdio: 'inherit' });
+      execFileSync('node', [new URL('./lock-picks.mjs', import.meta.url).pathname], { stdio: 'inherit' });
+      execFileSync('bash', [new URL('./commit-data.sh', import.meta.url).pathname, 'Update tips / lock numbers'], { stdio: 'inherit' });
+    } catch (e) { console.log('อัปเดตเลขเด็ดรอบนี้ไม่สำเร็จ', e.message); }
+  }
   try { execFileSync('node', [new URL('./update-draws.mjs', import.meta.url).pathname], { stdio: 'inherit' }); }
   catch (e) { console.log('ดึงผลรอบนี้ไม่สำเร็จ จะลองใหม่', e.message); }
   if (have(key)) { console.log(`ได้ผลงวด ${key} แล้ว`); process.exit(0); }

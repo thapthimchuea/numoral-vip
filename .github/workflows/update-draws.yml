@@ -32,8 +32,14 @@ jobs:
           node-version: 20
       - name: Self-test parser
         run: node scripts/update-draws.mjs --test
+      - name: Self-test tips parser
+        continue-on-error: true
+        run: node scripts/update-tips.mjs --test
       - name: Fetch latest Lao Pattana results
         run: node scripts/update-draws.mjs
+      - name: Fetch tips (เลขเด็ดสำนักดัง)
+        continue-on-error: true
+        run: node scripts/update-tips.mjs --lotto=laos
       - name: Lock numbers for the next draw (ชุดลุ้น)
         run: node scripts/lock-picks.mjs
       - name: Commit new draws / locked numbers
@@ -43,6 +49,8 @@ jobs:
           WATCH_FROM: "13"
           WATCH_UNTIL: "23.5"
           WATCH_DAYS: "1-5"
+          TIPS_LOTTO: "laos"
+          WATCH_TIPS_UNTIL: "19.9"
         run: node scripts/watch-draw.mjs
       - name: Lock next draw + commit again
         run: |
