@@ -803,7 +803,7 @@ function HoroPeriodCard({ P, D }) {
     const left = ci >= 0 ? D.periods[ci].to - m : 0;
     const nextName = ci >= 0 ? (ci < 7 ? D.periods[ci + 1].name : "เช้าตรู่ (วันใหม่)") : "";
     const tone = s => s >= 4 ? { background: "rgba(34,197,94,.14)", border: "1px solid rgba(34,197,94,.45)" } : s <= 2 ? { background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.45)" } : { background: "rgba(39,39,42,.6)", border: "1px solid #3f3f46" };
-    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(56,189,248,.22), 0 0 26px rgba(56,189,248,.06)" } },
+    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(0,229,255,.25), 0 0 30px rgba(0,229,255,.09)" } },
         React.createElement(SectionTitle, { icon: "Clock", className: "glow-cyan" }, "ดวงตามช่วงเวลา"),
         React.createElement("div", { className: "rounded-xl px-3 py-3", style: tone(p.score) },
             React.createElement("div", { className: "flex items-center justify-between gap-2" },
@@ -813,7 +813,7 @@ function HoroPeriodCard({ P, D }) {
             React.createElement("p", { className: "text-[14.5px] text-zinc-200 mt-1.5 leading-relaxed" }, p.text),
             React.createElement("p", { className: "text-[13px] text-zinc-300 mt-2" }, "✅ ควรทำ: ", p.todo),
             React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, "⛔ ควรเลี่ยง: ", p.avoid),
-            React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, "🍀 เลขนำโชคช่วงนี้: ", React.createElement("b", { className: "digi text-[16px] text-amber-200" }, p.num))),
+            React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, "🍀 เลขนำโชคช่วงนี้: ", React.createElement("b", { className: "digi text-[16px] glow-pink" }, p.num))),
         ci >= 0 && React.createElement("p", { className: "text-[12.5px] text-zinc-400 mt-2" }, "⏳ อีก ", left >= 60 ? `${Math.floor(left / 60)} ชม. ` : "", left % 60, " นาที เข้าช่วง", nextName),
         React.createElement("div", { className: "grid grid-cols-4 gap-1.5 mt-3" }, D.periods.map((q, k) => React.createElement("button", { key: k, onClick: () => setSel(k === ci ? null : k), className: "rounded-lg py-1.5 text-center", style: { ...tone(q.score), outline: k === idx ? "2px solid #e4e4e7" : "none", opacity: ci >= 0 && k < ci && k !== idx ? 0.55 : 1 } },
             React.createElement("p", { className: "text-[11.5px] text-zinc-200" }, q.emoji, " ", q.name),
@@ -872,15 +872,15 @@ function HoroForm({ init, onSave, onCancel }) {
     const [time, setTime] = useState(init && init.time || "");
     const ok = /^\d{4}-\d{2}-\d{2}$/.test(birth) && +birth.slice(0, 4) > 1900 && new Date(birth) < new Date();
     const lab = t => React.createElement("p", { className: "text-[12.5px] text-zinc-400 mb-1 mt-3" }, t);
-    return React.createElement("div", { className: "glass rounded-2xl p-4" },
-        React.createElement(SectionTitle, { icon: "Sparkles", className: "glow-pink" }, "ตั้งค่าดวงของคุณ"),
+    return React.createElement("div", { className: "rgb-frame" }, React.createElement("div", { className: "inner p-4" },
+        React.createElement(SectionTitle, { icon: "Sparkles", className: "rgb-text" }, "ตั้งค่าดวงของคุณ"),
         React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "กรอกครั้งเดียว ใช้ดูดวงเฉพาะตัวทุกวัน · ข้อมูลเก็บในเครื่องนี้เท่านั้น ไม่ส่งไปที่ไหน"),
         lab("ชื่อเล่น"), React.createElement("input", { value: nick, maxLength: 20, onChange: e => setNick(e.target.value), placeholder: "เช่น ต้น", style: HORO_INPUT }),
         lab("วันเดือนปีเกิด (ค.ศ. ตามปฏิทินในเครื่อง)"), React.createElement("input", { type: "date", value: birth, onChange: e => setBirth(e.target.value), style: HORO_INPUT }),
         lab("เวลาเกิด (ไม่บังคับ — ถ้ารู้จะแม่นเรื่องวันเกิดตามตำราไทยขึ้น)"), React.createElement("input", { type: "time", value: time, onChange: e => setTime(e.target.value), style: HORO_INPUT }),
         React.createElement("div", { className: "flex gap-2 mt-4" },
             React.createElement("button", { disabled: !ok, onClick: () => onSave({ nick: nick.trim(), birth, time }), className: "flex-1 rounded-xl py-2.5 text-[14px] chip-active", style: ok ? {} : { opacity: 0.4 } }, "บันทึก"),
-            onCancel && React.createElement("button", { onClick: onCancel, className: "rounded-xl py-2.5 px-4 text-[14px] border border-zinc-700 text-zinc-300" }, "ยกเลิก")));
+            onCancel && React.createElement("button", { onClick: onCancel, className: "rounded-xl py-2.5 px-4 text-[14px] border border-zinc-700 text-zinc-300" }, "ยกเลิก"))));
 }
 function HoroPage() {
     const [raw, setRaw] = useStore(horoStore);
@@ -900,11 +900,11 @@ function HoroPage() {
     const goodDays = month.filter(x => x.total >= 3.75).map(x => x.date.getDate()), careDays = month.filter(x => x.posName === "กาลกิณี" || x.cn === "clash").map(x => x.date.getDate());
     const dot = (hex, label) => React.createElement("span", { className: "inline-flex items-center gap-1.5" }, React.createElement("span", { style: { width: 14, height: 14, borderRadius: 99, background: hex, display: "inline-block", border: "1px solid rgba(255,255,255,.3)" } }), label);
     return React.createElement("div", { className: "space-y-5 fade-in" },
-        React.createElement("div", { className: "glass rounded-2xl p-4" },
+        React.createElement("div", { className: "rgb-frame" }, React.createElement("div", { className: "inner p-4 grid-bg" },
             React.createElement("div", { className: "flex items-start justify-between gap-2" },
                 React.createElement("div", null,
                     React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "ดวงวันนี้ · ", dayN(today), " ", fmtD(today)),
-                    React.createElement("h2", { className: "text-[20px] font-bold text-zinc-100 mt-0.5" }, "ของ", P.nick),
+                    React.createElement("h2", { className: "text-[22px] font-black rgb-text mt-0.5" }, "ของ", P.nick),
                     React.createElement("p", { className: "text-[18px] mt-1" }, horoStars(Math.round(D.total)), React.createElement("span", { className: "text-[12px] text-zinc-400 ml-2" }, "ภาพรวม ", D.total.toFixed(1), "/5"))),
                 React.createElement("button", { onClick: () => setEdit(true), className: "text-[12px] text-zinc-400 underline" }, "แก้ข้อมูล")),
             React.createElement(HoroLevelBadge, { D }),
@@ -920,13 +920,13 @@ function HoroPage() {
                 React.createElement("div", { className: "rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2" }, React.createElement("p", { className: "text-[11.5px] text-zinc-500 mb-1" }, "ทิศมงคล"), D.dir)),
             React.createElement("button", { onClick: () => setWhy(!why), className: "text-[12px] text-zinc-500 underline mt-3" }, why ? "ซ่อน" : "ทำไมถึงได้ดวงนี้?"),
             why && React.createElement("ul", { className: "text-[12px] text-zinc-400 mt-1.5 space-y-1" }, D.why.map((w, i) => React.createElement("li", { key: i }, "• ", w))),
-            React.createElement(ShareBar, { text: () => horoShareText(P, D) })),
+            React.createElement(ShareBar, { text: () => horoShareText(P, D) }))),
         React.createElement(HoroAspectsCard, { P, D }),
         React.createElement(HoroPeriodCard, { P, D }),
         React.createElement(HoroLuckyCard, { P, D }),
         React.createElement(HoroTarotCard, { D, today }),
-        React.createElement("div", { className: "glass rounded-2xl p-4" },
-            React.createElement(SectionTitle, { icon: "CalendarDays", className: "glow-cyan" }, "7 วันข้างหน้า"),
+        React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(0,255,136,.2), 0 0 30px rgba(0,255,136,.07)" } },
+            React.createElement(SectionTitle, { icon: "CalendarDays", className: "glow-green" }, "7 วันข้างหน้า"),
             React.createElement("div", { className: "grid grid-cols-7 gap-1 text-center" }, week.map((w, i) => React.createElement("div", { key: i, className: "rounded-lg py-1.5", style: { background: w === best ? "rgba(34,197,94,.15)" : w === worst ? "rgba(245,158,11,.12)" : "rgba(39,39,42,.6)", border: "1px solid #27272a" } },
                 React.createElement("p", { className: "text-[10.5px] text-zinc-400" }, i === 0 ? "วันนี้" : ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."][w.date.getDay()]),
                 React.createElement("p", { className: "text-[13px] leading-none mt-0.5" }, horoLevel(w.total).emoji),
@@ -969,13 +969,13 @@ function HoroLuckyCard({ P, D }) {
         return { d: last.date, h2: L0.two.filter(n => n === last.top || n === last.bottom).length, h3: L0.three.filter(n => n === l3).length };
     }, [P, last ? last.id : ""]);
     const n = all ? 10 : 3;
-    const box = (txt, strong) => React.createElement("div", { key: txt, className: `digi text-center rounded-lg py-1.5 text-[18px] border ${strong ? "text-amber-100 border-amber-400/60 bg-amber-500/10" : "text-zinc-200 border-zinc-700 bg-zinc-900/60"}` }, txt);
+    const box = (txt, strong) => React.createElement("div", { key: txt, className: `digi text-center rounded-lg py-1.5 text-[18px] border ${strong ? "text-fuchsia-200 border-fuchsia-400/50 bg-fuchsia-500/10" : "text-cyan-200/90 border-cyan-400/30 bg-cyan-500/5"}` }, txt);
     const text = () => `🍀 เลขมงคลวันนี้ของ${P.nick} (${fmtDate(D.date)})\nเลขเด่น: ${L.key.map(k => k.d).join(", ")}\n2 ตัว: ${shareNums(L.two, pad2)}\n3 ตัว: ${shareNums(L.three, pad3)}`;
-    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(245,158,11,.25), 0 0 26px rgba(245,158,11,.07)" } },
-        React.createElement(SectionTitle, { icon: "Clover", className: "text-amber-300" }, "เลขมงคลวันนี้ของ", P.nick),
-        React.createElement("div", { className: "grid grid-cols-2 gap-2 mb-3" }, L.key.map((k, i) => React.createElement("div", { key: i, className: "rounded-xl border border-amber-400/40 px-3 py-2", style: { background: "rgba(245,158,11,.08)" } },
+    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(255,0,200,.25), 0 0 30px rgba(255,0,200,.09)" } },
+        React.createElement(SectionTitle, { icon: "Clover", className: "glow-pink" }, "เลขมงคลวันนี้ของ", P.nick),
+        React.createElement("div", { className: "grid grid-cols-2 gap-2 mb-3" }, L.key.map((k, i) => React.createElement("div", { key: i, className: "rounded-xl border border-fuchsia-400/40 px-3 py-2", style: { background: "rgba(255,0,200,.07)", boxShadow: "inset 0 0 12px rgba(255,0,200,.08)" } },
             React.createElement("p", { className: "text-[11px] text-zinc-400" }, i === 0 ? "เลขเด่น" : "เลขรอง"),
-            React.createElement("p", { className: "digi text-[30px] font-black text-amber-200 leading-none mt-0.5" }, k.d),
+            React.createElement("p", { className: "digi text-[30px] font-black rgb-text leading-none mt-0.5" }, k.d),
             React.createElement("p", { className: "text-[11.5px] text-zinc-400 mt-1 leading-snug" }, k.why)))),
         React.createElement("p", { className: "text-[12.5px] text-zinc-400 mb-1.5" }, "2 ตัว"),
         React.createElement("div", { className: "grid grid-cols-5 gap-1.5 mb-3" }, L.two.slice(0, n).map((x, i) => box(pad2(x), i < 3))),
@@ -1143,7 +1143,7 @@ function HoroAspectsCard({ P, D }) {
     const tone = s => s >= 4 ? { background: "rgba(34,197,94,.13)", border: "1px solid rgba(34,197,94,.45)" } : s <= 2 ? { background: "rgba(245,158,11,.11)", border: "1px solid rgba(245,158,11,.45)" } : { background: "rgba(39,39,42,.6)", border: "1px solid #3f3f46" };
     const togglePin = id => setPins(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id].slice(-3));
     const names = l => l.map(a => `${a.emoji} ${a.name}`).join(" · ");
-    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(192,139,255,.22), 0 0 26px rgba(192,139,255,.06)" } },
+    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(139,0,255,.28), 0 0 30px rgba(139,0,255,.09)" } },
         React.createElement(SectionTitle, { icon: "LayoutGrid", className: "glow-violet" }, "ดวงรายด้าน"),
         React.createElement("div", { className: "rounded-xl px-3 py-2.5 mb-3", style: { background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.3)" } },
             React.createElement("p", { className: "text-[13.5px] text-emerald-300 leading-relaxed" }, "🌟 วันนี้เด่นเรื่อง: ", React.createElement("b", null, H.good.length ? names(H.good) : "ทุกด้านพอ ๆ กัน")),
@@ -1244,8 +1244,8 @@ function HoroTarotCard({ D, today }) {
                 React.createElement("div", { style: { position: "absolute", inset: 0, backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", filter: "drop-shadow(0 0 10px rgba(190,24,93,.45))" } }, React.createElement(TarotBack)),
                 on && React.createElement("div", { style: { position: "absolute", inset: 0, backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", filter: "drop-shadow(0 0 14px rgba(252,211,77,.55))" } }, React.createElement(TarotFace, { i: D.tarot.i, rev: D.tarot.rev }))));
     };
-    return React.createElement("div", { className: "glass rounded-2xl p-4" },
-        React.createElement(SectionTitle, { icon: "Sparkles", className: "glow-violet" }, "ไพ่ทาโรต์ประจำวัน"),
+    return React.createElement("div", { className: "glass rounded-2xl p-4", style: { boxShadow: "0 0 0 1px rgba(255,0,200,.22), 0 0 30px rgba(139,0,255,.1)" } },
+        React.createElement(SectionTitle, { icon: "Sparkles", className: "rgb-text" }, "ไพ่ทาโรต์ประจำวัน"),
         !flipped ? React.createElement("div", { className: "flex flex-col items-center py-2" },
             React.createElement("div", { className: "flex justify-center gap-3" }, [0, 1, 2].map(k => face3d(k, 88))),
             React.createElement("p", { className: "text-[14px] text-zinc-300 mt-3 text-center" }, anim !== null ? "กำลังเปิดไพ่..." : "ตั้งจิตนึกถึงเรื่องที่อยากรู้ แล้วเลือกไพ่ 1 ใบ"))
@@ -2382,7 +2382,7 @@ function Personal() {
         return React.createElement("div", { key: N, className: "flex items-center gap-3 rounded-xl bg-zinc-900/60 border border-zinc-800 px-3 py-2" }, React.createElement("span", { className: "digi text-xl font-black w-10 text-center", style: { color: "#fff", textShadow: `0 0 8px ${m.color}, 0 0 16px ${m.color}` } }, pad2(z.n)), React.createElement("span", { className: "flex-1 text-[12.5px] text-zinc-300 leading-snug" }, z.why), React.createElement("span", { className: "text-[11px] text-zinc-500 text-right whitespace-nowrap" }, "ออก ", React.createElement("b", { className: "digi text-zinc-300" }, M.total), " ครั้ง"));
     })), m.digits.length > 0 && React.createElement("p", { className: "text-[11.5px] text-zinc-500 mt-2.5" }, m.digits.map((z, N) => React.createElement("span", { key: N, className: "mr-3" }, "เลข ", React.createElement("b", { className: "digi text-zinc-200" }, z.d), " — ", z.why))))), React.createElement("p", { className: "text-[11px] text-zinc-500 flex gap-1.5 px-1" }, React.createElement(Icon, { name: "Info", size: 13, className: "shrink-0 mt-0.5" }), "เลขส่วนตัวมาจากหลักเลขศาสตร์ ไม่มีความสัมพันธ์ทางสถิติกับผลการออกรางวัล ใช้เพื่อความบันเทิงเท่านั้น")));
 }
-const TABS = [{ id: "dashboard", label: "ภาพรวม", icon: "LayoutDashboard", color: "#ff00c8" }, { id: "predict", label: "วิเคราะห์", icon: "BrainCircuit", color: "#00e5ff" }, { id: "horo", label: "ดวง", icon: "Sparkles", color: "#ff9100" }, { id: "personal", label: "เลขส่วนตัว", icon: "Fingerprint", color: "#c08bff" }, { id: "mine", label: "ของฉัน", icon: "Star", color: "#ffd600" }, { id: "history", label: "คลังข้อมูล", icon: "History", color: "#00ff88" }];
+const TABS = [{ id: "dashboard", label: "ภาพรวม", icon: "LayoutDashboard", color: "#ff00c8" }, { id: "predict", label: "วิเคราะห์", icon: "BrainCircuit", color: "#00e5ff" }, { id: "horo", label: "ดวง", icon: "Sparkles", color: "#6e7bff" }, { id: "personal", label: "เลขส่วนตัว", icon: "Fingerprint", color: "#c08bff" }, { id: "mine", label: "ของฉัน", icon: "Star", color: "#ffd600" }, { id: "history", label: "คลังข้อมูล", icon: "History", color: "#00ff88" }];
 function App() {
     const [e, t] = useState(() => {
         const m = location.hash.replace("#", "");

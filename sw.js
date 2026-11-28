@@ -1,6 +1,6 @@
 /* Numoral Laos service worker
    เมื่ออัปโหลดไฟล์เวอร์ชันใหม่ ให้เปลี่ยนเลข VERSION ด้านล่าง (เช่น v1 -> v2) เพื่อให้มือถือทุกเครื่องได้ไฟล์ใหม่ */
-const VERSION = 'l2.10.0';
+const VERSION = 'l2.11.0';
 const CACHE = 'numoralaos-' + VERSION;
 const APP_SHELL = [
   './', './index.html', './app.js', './vendor.js', './styles.css', './manifest.json',
