@@ -907,6 +907,7 @@ function HoroPage() {
                     React.createElement("h2", { className: "text-[20px] font-bold text-zinc-100 mt-0.5" }, "ของ", P.nick),
                     React.createElement("p", { className: "text-[18px] mt-1" }, horoStars(Math.round(D.total)), React.createElement("span", { className: "text-[12px] text-zinc-400 ml-2" }, "ภาพรวม ", D.total.toFixed(1), "/5"))),
                 React.createElement("button", { onClick: () => setEdit(true), className: "text-[12px] text-zinc-400 underline" }, "แก้ข้อมูล")),
+            React.createElement(HoroLevelBadge, { D }),
             React.createElement("div", { className: "space-y-2.5 mt-3" }, HORO_CAT.map(([k, name, ic], i) => React.createElement("div", { key: k, className: "rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5" },
                 React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("b", { className: "text-[14px] text-zinc-100" }, ic, " ", name), React.createElement("span", { className: "text-[13px]" }, horoStars(D.scores[i]))),
                 React.createElement("p", { className: "text-[14px] text-zinc-300 mt-1 leading-relaxed" }, D.lines[i])))),
@@ -938,6 +939,7 @@ function HoroPage() {
             React.createElement(SectionTitle, { icon: "CalendarDays", className: "glow-cyan" }, "7 วันข้างหน้า"),
             React.createElement("div", { className: "grid grid-cols-7 gap-1 text-center" }, week.map((w, i) => React.createElement("div", { key: i, className: "rounded-lg py-1.5", style: { background: w === best ? "rgba(34,197,94,.15)" : w === worst ? "rgba(245,158,11,.12)" : "rgba(39,39,42,.6)", border: "1px solid #27272a" } },
                 React.createElement("p", { className: "text-[10.5px] text-zinc-400" }, i === 0 ? "วันนี้" : ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."][w.date.getDay()]),
+                React.createElement("p", { className: "text-[13px] leading-none mt-0.5" }, horoLevel(w.total).emoji),
                 React.createElement("p", { className: "text-[14px] font-bold text-zinc-100" }, w.total.toFixed(1)),
                 React.createElement("p", { className: "text-[10px] text-zinc-500" }, w.date.getDate())))),
             React.createElement("p", { className: "text-[13px] text-zinc-300 mt-2.5" }, "✅ วันดีที่สุดสัปดาห์นี้: ", React.createElement("b", null, dayN(best.date), " ", fmtD(best.date)), " · ⚠️ วันควรระวัง: ", React.createElement("b", null, dayN(worst.date), " ", fmtD(worst.date))),
@@ -995,7 +997,7 @@ function HoroLuckyCard({ P, D }) {
         React.createElement(ShareBar, { text }),
         React.createElement("p", { className: "text-[11px] text-zinc-500 mt-2 leading-snug" }, "เลขมงคลมาจากดวงของคุณ (ดาวศรี ดาวเดช ดาวมนตรี และเลขประจำวัน) ไม่ได้มาจากสถิติ · เพื่อความบันเทิง"));
 }
-const horoShareText = (P, D) => `🔮 ดวงวันนี้ของ${P.nick} ${horoStars(Math.round(D.total))}\n` + HORO_CAT.map(([k, name, ic], i) => `${ic} ${name}: ${D.lines[i]}`).join("\n") + `\n⏰ ช่วง${horoCurPeriod(D).name}: ${horoCurPeriod(D).text}\n👉 ${D.tip}\n🎨 สีมงคล: ${D.lucky.color}`;
+const horoShareText = (P, D) => `${horoLevel(D.total).emoji} ${horoLevel(D.total).share}\n🔮 ดวงวันนี้ของ${P.nick} ${horoStars(Math.round(D.total))}\n` + HORO_CAT.map(([k, name, ic], i) => `${ic} ${name}: ${D.lines[i]}`).join("\n") + `\n⏰ ช่วง${horoCurPeriod(D).name}: ${horoCurPeriod(D).text}\n👉 ${D.tip}\n🎨 สีมงคล: ${D.lucky.color}`;
 
 // ===== เช็คเลขในใจ: เทียบกับทุกสูตรของงวดถัดไป (ติด 10 อันดับแรก = ตรงมาก · 11–30 = ตรง) =====
 let numCheckFocus = false;
@@ -1089,19 +1091,38 @@ function NumCheckCard() {
             React.createElement("p", { className: "text-[11px] text-zinc-500 mt-2 leading-snug" }, "🔥 ตรงมาก = ติด 10 อันดับแรกของสูตร · ✅ ตรง = อันดับ 11–30", res.is3 ? "" : " (2 ตัวมีเลขทั้งหมด 100 ตัว)", " · ตรงหลายสูตรไม่ได้แปลว่าโอกาสออกสูงขึ้น เป็นแค่การเทียบมุมมองของแต่ละสูตร")));
 }
 
+// ระดับดวงวันนี้ (เกณฑ์ปรับให้ "ดวงดีมาก" ขึ้นราว 15% ของวัน)
+const HORO_LEVELS = [
+    { min: 4.25, k: 5, emoji: "🌟", head: "วันนี้คุณดวงดีมาก", share: "วันนี้ฉันดวงดีมาก!", sub: "วันของคุณ! ลุยเรื่องสำคัญได้เลย", color: "#fcd34d", bg: "rgba(245,158,11,.13)", bd: "rgba(252,211,77,.65)", glow: "0 0 24px rgba(252,211,77,.32)" },
+    { min: 3.75, k: 4, emoji: "✨", head: "วันนี้คุณดวงดี", share: "วันนี้ฉันดวงดี", sub: "ทำอะไรก็มีแนวโน้มไปได้สวย", color: "#86efac", bg: "rgba(34,197,94,.11)", bd: "rgba(34,197,94,.5)", glow: "0 0 18px rgba(34,197,94,.2)" },
+    { min: 3, k: 3, emoji: "🙂", head: "วันนี้ดวงกลาง ๆ", share: "วันนี้ฉันดวงกลาง ๆ", sub: "วันปกติ ทำตามแผนได้สบาย", color: "#7dd3fc", bg: "rgba(56,189,248,.09)", bd: "rgba(56,189,248,.4)", glow: "none" },
+    { min: 2.25, k: 2, emoji: "🌥️", head: "วันนี้ดวงทรงตัว ใจเย็นไว้", share: "วันนี้ฉันดวงทรงตัว", sub: "ค่อยเป็นค่อยไป แล้วจะผ่านไปด้วยดี", color: "#e4e4e7", bg: "rgba(161,161,170,.1)", bd: "rgba(161,161,170,.45)", glow: "none" },
+    { min: 0, k: 1, emoji: "🛡️", head: "วันนี้เป็นวันควรระวัง", share: "วันนี้ฉันต้องระวังหน่อย", sub: "กดดูวิธีเสริมดวงวันนี้", color: "#fdba74", bg: "rgba(249,115,22,.11)", bd: "rgba(249,115,22,.5)", glow: "none" }
+];
+const horoLevel = t => HORO_LEVELS.find(l => t >= l.min - 1e-9) || HORO_LEVELS[4];
+const horoBest = D => { const c = horoCurPeriod(D), r = D.periods.filter(x => x.i >= c.i && x.i < 6); return r.length ? r.reduce((a, x) => x.score > a.score ? x : a) : null; };
+function HoroLevelBadge({ D }) {
+    const L = horoLevel(D.total), b = horoBest(D);
+    return React.createElement("div", { className: "rounded-xl px-3 py-2.5 mt-2", style: { background: L.bg, border: `1px solid ${L.bd}`, boxShadow: L.glow } },
+        React.createElement("p", { className: "text-[20px] font-black leading-snug", style: { color: L.color } }, L.emoji, " ", L.head),
+        React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, L.k <= 2 ? `เสริมดวง: ใส่สี${D.lucky.color}${b ? ` · ทำเรื่องสำคัญช่วง${b.name} (${b.range} น.)` : ""} · ${D.tip}` : `${L.sub}${b ? ` · ช่วงที่เหลือวันนี้ ดีสุดคือช่วง${b.name}` : ""}`));
+}
 function HoroMiniCard({ onOpen }) {
     const [raw] = useStore(horoStore);
     const P = useMemo(() => horoProfile(raw), [raw]);
     const today = horoToday();
     const D = useMemo(() => P ? horoDay(P, today) : null, [P, horoKey(today)]);
-    return React.createElement("button", { onClick: onOpen, className: "w-full text-left glass rounded-2xl p-4", style: { border: "1px solid rgba(244,114,182,.35)" } },
-        !P ? React.createElement("div", { className: "flex items-center gap-3" }, React.createElement("span", { style: { fontSize: 28 } }, "🔮"),
-            React.createElement("div", { className: "flex-1" }, React.createElement("p", { className: "text-[15px] font-bold text-zinc-100" }, "ดูดวงเฉพาะตัวคุณ"), React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "กรอกวันเกิดครั้งเดียว ดูดวงได้ทุกวัน")), React.createElement("span", { className: "text-zinc-500 text-[20px]" }, "›"))
-            : React.createElement("div", null,
-                React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("p", { className: "text-[14px] font-bold text-zinc-100" }, "🔮 ดวงวันนี้ของ", P.nick), React.createElement("span", { className: "text-[13px]" }, horoStars(Math.round(D.total)))),
-                React.createElement("p", { className: "text-[13.5px] text-zinc-300 mt-1.5 leading-relaxed" }, D.lines[[...D.scores].map((s, i) => [s, i]).sort((a, b) => b[0] - a[0])[0][1]]),
-                (() => { const c = horoCurPeriod(D); return React.createElement("p", { className: "text-[12.5px] text-cyan-100 mt-1.5 leading-snug" }, "⏰ ตอนนี้ช่วง", c.name, " ", "⭐".repeat(c.score), " · ", c.text); })(),
-                React.createElement("p", { className: "text-[12.5px] text-zinc-400 mt-1.5 flex items-center gap-2" }, "สีมงคล ", React.createElement("span", { style: { width: 12, height: 12, borderRadius: 99, background: D.lucky.hex, display: "inline-block" } }), D.lucky.color, React.createElement("span", { className: "ml-auto text-zinc-500" }, "ดูดวงเต็ม ›"))));
+    if (!P) return React.createElement("button", { onClick: onOpen, className: "w-full text-left glass rounded-2xl p-4", style: { border: "1px solid rgba(252,211,77,.45)", boxShadow: "0 0 20px rgba(252,211,77,.12)" } },
+        React.createElement("div", { className: "flex items-center gap-3" }, React.createElement("span", { style: { fontSize: 30 } }, "🔮"),
+            React.createElement("div", { className: "flex-1" }, React.createElement("p", { className: "text-[17px] font-black", style: { color: "#fcd34d" } }, "วันนี้คุณดวงดีแค่ไหน?"), React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "กรอกวันเกิดครั้งเดียว ดูดวงเฉพาะตัวได้ทุกวัน")), React.createElement("span", { className: "text-zinc-400 text-[13px]" }, "กดดูเลย ›")));
+    const L = horoLevel(D.total), c = horoCurPeriod(D), b = horoBest(D);
+    const hint = !b ? `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · พักผ่อนให้เต็มที่ พรุ่งนี้มาดูดวงใหม่` : c.i === b.i ? `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · ช่วงดีที่สุดที่เหลือของวัน!` : c.score >= 5 ? `⏰ ตอนนี้ช่วง${c.name} ดวงดีมาก!` : `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · เดี๋ยวช่วง${b.name}ดีกว่า`;
+    return React.createElement("button", { onClick: onOpen, className: "w-full text-left glass rounded-2xl p-4", style: { background: L.bg, border: `1px solid ${L.bd}`, boxShadow: L.glow } },
+        React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "🔮 ดวงวันนี้ของ", P.nick), React.createElement("span", { className: "text-[13px]" }, horoStars(Math.round(D.total)))),
+        React.createElement("p", { className: "text-[22px] font-black leading-snug mt-1", style: { color: L.color } }, L.emoji, " ", L.head),
+        React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, L.sub),
+        React.createElement("p", { className: "text-[12.5px] text-cyan-100 mt-1.5 leading-snug" }, hint),
+        React.createElement("p", { className: "text-[12.5px] text-zinc-400 mt-1.5 flex items-center gap-2" }, "สีมงคล ", React.createElement("span", { style: { width: 12, height: 12, borderRadius: 99, background: D.lucky.hex, display: "inline-block" } }), D.lucky.color, React.createElement("span", { className: "ml-auto text-zinc-300" }, "ดูดวงเต็ม ›")));
 }
 
 function Dashboard({ lastCheck: e, onNav: t = () => {
