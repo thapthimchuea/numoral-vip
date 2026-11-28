@@ -1269,18 +1269,18 @@ function HoroMiniCard({ onOpen }) {
     const P = useMemo(() => horoProfile(raw), [raw]);
     const today = horoToday();
     const D = useMemo(() => P ? horoDay(P, today) : null, [P, horoKey(today)]);
-    if (!P) return React.createElement("button", { onClick: onOpen, className: "w-full text-left glass rounded-2xl p-4", style: { border: "1px solid rgba(252,211,77,.45)", boxShadow: "0 0 20px rgba(252,211,77,.12)" } },
+    if (!P) return React.createElement("div", { className: "rgb-frame" }, React.createElement("button", { onClick: onOpen, className: "inner w-full text-left p-4 grid-bg block" },
         React.createElement("div", { className: "flex items-center gap-3" }, React.createElement("span", { style: { fontSize: 30 } }, "🔮"),
-            React.createElement("div", { className: "flex-1" }, React.createElement("p", { className: "text-[17px] font-black", style: { color: "#fcd34d" } }, "วันนี้คุณดวงดีแค่ไหน?"), React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "กรอกวันเกิดครั้งเดียว ดูดวงเฉพาะตัวได้ทุกวัน")), React.createElement("span", { className: "text-zinc-400 text-[13px]" }, "กดดูเลย ›")));
+            React.createElement("div", { className: "flex-1" }, React.createElement("p", { className: "text-[17px] font-black rgb-text" }, "วันนี้คุณดวงดีแค่ไหน?"), React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "กรอกวันเกิดครั้งเดียว ดูดวงเฉพาะตัวได้ทุกวัน")), React.createElement("span", { className: "text-zinc-400 text-[13px]" }, "กดดูเลย ›"))));
     const L = horoLevel(D.total), c = horoCurPeriod(D), b = horoBest(D);
     const hint = !b ? `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · พักผ่อนให้เต็มที่ พรุ่งนี้มาดูดวงใหม่` : c.i === b.i ? `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · ช่วงดีที่สุดที่เหลือของวัน!` : c.score >= 5 ? `⏰ ตอนนี้ช่วง${c.name} ดวงดีมาก!` : `⏰ ตอนนี้ช่วง${c.name} ${"⭐".repeat(c.score)} · เดี๋ยวช่วง${b.name}ดีกว่า`;
-    return React.createElement("button", { onClick: onOpen, className: "w-full text-left glass rounded-2xl p-4", style: { background: L.bg, border: `1px solid ${L.bd}`, boxShadow: L.glow } },
+    return React.createElement("div", { className: "rgb-frame" }, React.createElement("button", { onClick: onOpen, className: "inner w-full text-left p-4 block", style: { background: `linear-gradient(${L.bg}, ${L.bg}), #0b0b10` } },
         React.createElement("div", { className: "flex items-center justify-between" }, React.createElement("p", { className: "text-[12.5px] text-zinc-400" }, "🔮 ดวงวันนี้ของ", P.nick), React.createElement("span", { className: "text-[13px]" }, horoStars(Math.round(D.total)))),
-        React.createElement("p", { className: "text-[22px] font-black leading-snug mt-1", style: { color: L.color } }, L.emoji, " ", L.head),
+        React.createElement("p", { className: "text-[22px] font-black leading-snug mt-1", style: { color: L.color, textShadow: `0 0 12px ${L.bd}` } }, L.emoji, " ", L.head),
         React.createElement("p", { className: "text-[13px] text-zinc-300 mt-0.5" }, L.sub),
         React.createElement(HoroPinnedLines, { P, D }),
         React.createElement("p", { className: "text-[12.5px] text-cyan-100 mt-1.5 leading-snug" }, hint),
-        React.createElement("p", { className: "text-[12.5px] text-zinc-400 mt-1.5 flex items-center gap-2" }, "สีมงคล ", React.createElement("span", { style: { width: 12, height: 12, borderRadius: 99, background: D.lucky.hex, display: "inline-block" } }), D.lucky.color, React.createElement("span", { className: "ml-auto text-zinc-300" }, "ดูดวงเต็ม ›")));
+        React.createElement("p", { className: "text-[12.5px] text-zinc-400 mt-1.5 flex items-center gap-2" }, "สีมงคล ", React.createElement("span", { style: { width: 12, height: 12, borderRadius: 99, background: D.lucky.hex, display: "inline-block" } }), D.lucky.color, React.createElement("span", { className: "ml-auto text-zinc-300" }, "ดูดวงเต็ม ›"))));
 }
 
 function Dashboard({ lastCheck: e, onNav: t = () => {
